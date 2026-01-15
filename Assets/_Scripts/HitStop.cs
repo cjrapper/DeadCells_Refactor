@@ -3,30 +3,36 @@ using System.Collections;
 
 public class HitStop : MonoBehaviour
 {
-    //单例模式，便于调用
+    // Singleton instance for global access
     private static HitStop instance;
-    //防止多帧冲突
+    // Flag to prevent overlapping hit stops
     private bool isWaiting;
 
     void Awake()
     {
         instance = this;
     }
-    //
+
+    // Static method to trigger hit stop from anywhere
     public static void Stop(float duration)
     {
         if (instance.isWaiting) return;
         instance.StartCoroutine(instance.DoHitStop(duration));
     }
+
     IEnumerator DoHitStop(float duration)
     {
         isWaiting = true;
-        //暂停时间
+        
+        // Freeze game time
         Time.timeScale = 0f;
-        //
+        
+        // Wait for real time (unaffected by timeScale)
         yield return new WaitForSecondsRealtime(duration);
-        //恢复时间
+        
+        // Restore game time
         Time.timeScale = 1f;
+        
         isWaiting = false;
     }
 }

@@ -4,109 +4,160 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 { 
-    [Header("参数设置")]
+    [Header("Movement Settings")]
     public float moveSpeed = 5f;
     public float jumpForce = 12f;
 
-    [Header("手感优化")]
-    //预输入
-    public float jumpBufferTime = 0.2f;
-    //允许玩家在离地面一段时间后仍然可以跳跃（土狼时间）
-    public float coyoteTime = 0.1f;
+    [Header("Jump Feel (Coyote & Buffer)")]
+    public float jumpBufferTime = 0.2f; // Buffer jump input before hitting ground
+    public float coyoteTime = 0.1f;     // Allow jump shortly after leaving ground
 
-    [Header("地面检测")]
+    [Header("Ground Detection")]
     public Transform feetPos;
     public float checkRadius = 0.3f;
     public LayerMask ground;
 
-    [Header("战斗系统")]
+    [Header("Combat System")]
     public Transform attackPoint;
-    public WeaponData currentWeapon;//当前武器
-    private float nextAttackTime = 0f;//下次攻击时间
+    public WeaponData currentWeapon;
+    private float nextAttackTime = 0f;
 
+    [Header("Dash Settings")]
+    public float dashSpeed = 15f;
+    public float dashTime = 0.2f;
+    public float dashCooldown = 1f;
+    private bool isDashing;
+    private bool canDash = true;
+    private TrailRenderer tr;
 
+    // Internal Variables
     private Rigidbody2D rb;
     private float moveInput;
     private bool isGrounded;
-
-    //计时器变量
-    private float jumpBufferCounter;//预输入计时器
-    private float coyoteTimeCounter;//土狼时间计时器
+    private float jumpBufferCounter;
+    private float coyoteTimeCounter;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        tr = GetComponent<TrailRenderer>(); // Ensure TrailRenderer is attached for Dash
+
+        // Fix Wall Stick: Create zero-friction material dynamically
+        PhysicsMaterial2D noFriction = new PhysicsMaterial2D("NoFriction");
+        noFriction.friction = 0f;
+        GetComponent<Collider2D>().sharedMaterial = noFriction;
     }
 
     void Update()
     {
-        //获取输入
-        moveInput = Input.GetAxis("Horizontal");
-        //地面检测,
-        isGrounded = Physics2D.OverlapCircle(feetPos.position, checkRadius, ground);//在feetPos位置画一个半径为checkRadius的圆圈，检测是否与ground图层有碰撞
+        if (isDashing) return; // Lock input while dashing
 
-        //手感优化：预输入
+        // 1. Input Processing
+        moveInput = Input.GetAxisRaw("Horizontal"); // GetAxisRaw is snappier
+
+        // 2. Ground Check
+        isGrounded = Physics2D.OverlapCircle(feetPos.position, checkRadius, ground);
+
+        // 3. Coyote Time Logic
         if (isGrounded)
         {
-            coyoteTimeCounter = coyoteTime;//在地面上时，重置土狼时间计时器
+            coyoteTimeCounter = coyoteTime;
         }
         else
         {
-            coyoteTimeCounter -= Time.deltaTime;//不在地面上时，倒计时开始
+            coyoteTimeCounter -= Time.deltaTime;
         }
+
+        // 4. Jump Buffer Logic
         if (Input.GetButtonDown("Jump"))
         {
-            jumpBufferCounter = jumpBufferTime;//按下跳跃键时，重置预输入计时器
+            jumpBufferCounter = jumpBufferTime;
         }
         else
         {
-            jumpBufferCounter -= Time.deltaTime;//未按下跳跃键时，倒计时开始
+            jumpBufferCounter -= Time.deltaTime;
         }
-        //执行跳跃
-        if(jumpBufferCounter >0 && coyoteTimeCounter >0)
+
+        // 5. Execute Jump
+        if (coyoteTimeCounter > 0f && jumpBufferCounter > 0f)
         {
-            Jump();
-            jumpBufferCounter = 0;//跳跃后重置预输入计时器，防止连续跳跃
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            jumpBufferCounter = 0f;
+            coyoteTimeCounter = 0f;
         }
-        //攻击输入
-        if (Input.GetButtonDown("Fire1"))
+
+        // 6. Variable Jump Height (holding button jumps higher)
+        if (Input.GetButtonUp("Jump") && rb.velocity.y > 0f)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
+        }
+
+        // 7. Dash Input
+        if (Input.GetKeyDown(KeyCode.LeftShift) && canDash)
+        {
+            StartCoroutine(Dash());
+        }
+
+        // 8. Attack Input
+        if (Input.GetKeyDown(KeyCode.J))
         {
             TryAttack();
         }
+
+        // 9. Flip Character
+        if (moveInput > 0) transform.localScale = new Vector3(1, 1, 1);
+        else if (moveInput < 0) transform.localScale = new Vector3(-1, 1, 1);
+    }
+
+    void FixedUpdate()
+    {
+        if (isDashing) return;
+        rb.velocity = new Vector2(moveInput * moveSpeed, rb.velocity.y);
     }
 
     void TryAttack()
     {
         if(currentWeapon == null) return;
-        if(Time.time > nextAttackTime)
+        if(Time.time >= nextAttackTime)
         {
-            //调用武器的攻击方法，传入玩家自身作为持有者
             currentWeapon.Attack(this);
-            //更新下次攻击时间
             nextAttackTime = Time.time + currentWeapon.cooldown;
-
         }
     }
-    void FixedUpdate()//物理相关操作放在FixedUpdate中
-    {
 
-        rb.velocity = new Vector2(moveInput * moveSpeed, rb.velocity.y);
-    }
-    void Jump()
+    IEnumerator Dash()
     {
-        rb.velocity = new Vector2(rb.velocity.x, jumpForce);
-        coyoteTimeCounter = 0;//跳跃后重置土狼时间计时器，防止连续跳跃
+        canDash = false;
+        isDashing = true;
+        
+        float originalGravity = rb.gravityScale;
+        rb.gravityScale = 0f; // Disable gravity during dash
+        
+        // Dash direction based on facing
+        float dashDir = transform.localScale.x; 
+        rb.velocity = new Vector2(dashDir * dashSpeed, 0f);
+
+        if (tr != null) tr.emitting = true;
+
+        yield return new WaitForSeconds(dashTime);
+
+        if (tr != null) tr.emitting = false;
+        rb.gravityScale = originalGravity;
+        isDashing = false;
+
+        yield return new WaitForSeconds(dashCooldown);
+        canDash = true;
     }
 
-    //调试
     void OnDrawGizmos()
     {
-    if(attackPoint != null && currentWeapon != null)
-    {
-        Gizmos.color = Color.blue;
-        Gizmos.DrawWireSphere(attackPoint.position, currentWeapon.attackRange);
-    }
+        if(attackPoint != null && currentWeapon != null)
+        {
+            Gizmos.color = Color.blue;
+            Gizmos.DrawWireSphere(attackPoint.position, currentWeapon.attackRange);
+        }
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(feetPos.position, checkRadius);
+        if (feetPos != null)
+            Gizmos.DrawWireSphere(feetPos.position, checkRadius);
     }
 }
