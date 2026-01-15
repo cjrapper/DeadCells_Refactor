@@ -1,8 +1,7 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public interface IDamageable // 可受伤接口
+public interface IDamageable
 {
-    void TakeDamage(int amount);
+    // Updated to include source position and knockback force for combat feel
+    void TakeDamage(int amount, Vector3 sourcePosition, float knockbackForce);
 }
