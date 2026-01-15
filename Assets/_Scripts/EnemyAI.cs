@@ -20,7 +20,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
     private Rigidbody2D rb;
     private SpriteRenderer sr;
 
-    // State Machine
+    // State Machine 
     public enum State { Patrol, Chase, Hurt }
     public State currentState;
 
