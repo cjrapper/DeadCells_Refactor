@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Cinemachine;
 
 public class PlayerController : MonoBehaviour,IDamageable
 { 
@@ -35,6 +36,9 @@ public class PlayerController : MonoBehaviour,IDamageable
     private bool isDashing;
     private bool canDash = true;
     private TrailRenderer tr;
+    [Header("Effects")]
+    public GameObject hitEffectPrefab;
+    public CinemachineImpulseSource impulseSource;
 
     // Internal Variables
     private Rigidbody2D rb;
@@ -130,7 +134,7 @@ public class PlayerController : MonoBehaviour,IDamageable
         // Update Health Bar
         if(UIManager.instance != null)
         {
-            UIManager.instance.UpadteHealthBar(currentHealth,maxHealth);
+            UIManager.instance.UpdateHealthBar(currentHealth,maxHealth);
         }
         // 1. Knockback
         if (rb != null)
@@ -145,6 +149,16 @@ public class PlayerController : MonoBehaviour,IDamageable
         // 2. Visual Feedback
         StartCoroutine(FlashEffect());
 
+        if(impulseSource != null)
+        {
+            // 强制给一个随机方向的力，确保一定会震动
+            Vector3 shakeVelocity = new Vector3(UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f), 0) * 0.5f;
+            impulseSource.GenerateImpulse(shakeVelocity);
+        }
+        if(hitEffectPrefab != null)
+        {
+            Instantiate(hitEffectPrefab,transform.position,Quaternion.identity);
+        }
 
         if (currentHealth <= 0) Die();
     }

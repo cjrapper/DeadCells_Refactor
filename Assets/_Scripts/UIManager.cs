@@ -13,7 +13,7 @@ public class UIManager : MonoBehaviour
         if(instance == null) instance = this;
         else Destroy(gameObject);
     }
-    public void UpadteHealthBar(int current,int max)
+    public void UpdateHealthBar(int current,int max)
     {
         if(healthBarFill != null)
         {
