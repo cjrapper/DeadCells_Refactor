@@ -1,9 +1,15 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoBehaviour,IDamageable
 { 
+    [Header("Health Settings")]
+    public int maxHealth = 100;
+    private int currentHealth;
+    private SpriteRenderer sr;
+
     [Header("Movement Settings")]
     public float moveSpeed = 5f;
     public float jumpForce = 12f;
@@ -46,6 +52,9 @@ public class PlayerController : MonoBehaviour
         PhysicsMaterial2D noFriction = new PhysicsMaterial2D("NoFriction");
         noFriction.friction = 0f;
         GetComponent<Collider2D>().sharedMaterial = noFriction;
+
+        sr = GetComponent<SpriteRenderer>();
+        currentHealth = maxHealth;
     }
 
     void Update()
@@ -113,6 +122,47 @@ public class PlayerController : MonoBehaviour
     {
         if (isDashing) return;
         rb.velocity = new Vector2(moveInput * moveSpeed, rb.velocity.y);
+    }
+
+    public void TakeDamage(int amount,Vector3 sourcePosition, float knockbackForce)
+    {
+        currentHealth -= amount;
+        // Update Health Bar
+        if(UIManager.instance != null)
+        {
+            UIManager.instance.UpadteHealthBar(currentHealth,maxHealth);
+        }
+        // 1. Knockback
+        if (rb != null)
+        {
+            Vector2 direction = (transform.position - sourcePosition).normalized;
+            Vector2 force = direction * knockbackForce + Vector2.up * (knockbackForce * 0.5f);
+            
+            rb.velocity = Vector2.zero;
+            rb.AddForce(force, ForceMode2D.Impulse);
+        }
+
+        // 2. Visual Feedback
+        StartCoroutine(FlashEffect());
+
+
+        if (currentHealth <= 0) Die();
+    }
+    //
+    System.Collections.IEnumerator FlashEffect()
+    {
+        if(sr != null)
+        {
+            Color original = sr.color;
+            sr.color = Color.red;
+            yield return new WaitForSeconds(0.1f);
+            sr.color = original;
+        }
+    }
+    void Die()
+    {
+        Debug.Log("Game Over!");
+        Time.timeScale = 0f;
     }
 
     void TryAttack()

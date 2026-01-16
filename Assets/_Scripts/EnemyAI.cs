@@ -4,6 +4,13 @@ using UnityEngine.Rendering;
 
 public class EnemyAI : MonoBehaviour, IDamageable
 {
+    [Header("Combat")]
+    public float attackRange = 1.5f;
+    public float attackCooldown = 2f;
+    public int damage = 10;
+    public float knockbackForce = 10f;
+    private float nextAttackTime;
+
     [Header("Stats")]
     [SerializeField] private int health = 100;
     private int currentHealth;
@@ -21,7 +28,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
     private SpriteRenderer sr;
 
     // State Machine 
-    public enum State { Patrol, Chase, Hurt }
+    public enum State { Patrol, Chase, Hurt ,Attack}
     public State currentState;
 
     void Awake()
@@ -49,7 +56,12 @@ public class EnemyAI : MonoBehaviour, IDamageable
         }
         else if (currentState == State.Chase)
         {
-            if (dist > escapeRange) currentState = State.Patrol;
+            if(dist < attackRange) currentState = State.Attack;
+            else if (dist > escapeRange) currentState = State.Patrol;
+        }
+        else if(currentState == State.Attack)
+        {
+            if(dist > attackRange) currentState = State.Chase;
         }
     }
 
@@ -66,6 +78,9 @@ public class EnemyAI : MonoBehaviour, IDamageable
                 break;
             case State.Hurt:
                 // Do nothing, let physics (knockback) take control
+                break;
+            case State.Attack:
+                AttackLogic();
                 break;
         }
     }
@@ -106,6 +121,20 @@ public class EnemyAI : MonoBehaviour, IDamageable
         Vector3 scale = transform.localScale;
         scale.x *= -1;
         transform.localScale = scale;
+    }
+
+    void AttackLogic()
+    {
+        rb.velocity = Vector2.zero;
+        if(Time.time > nextAttackTime)
+        {
+            IDamageable target = player.GetComponent<IDamageable>();
+            if(target != null)
+            {
+                target.TakeDamage(damage, transform.position, knockbackForce);
+                nextAttackTime = Time.time + attackCooldown;
+            }
+        }
     }
 
     // --- IDamageable Interface ---
