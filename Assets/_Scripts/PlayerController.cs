@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
-using System.Reflection;
+using System.IO;
 
 public class PlayerController : MonoBehaviour,IDamageable
 { 
@@ -48,6 +48,15 @@ public class PlayerController : MonoBehaviour,IDamageable
     private bool isGrounded;
     private float jumpBufferCounter;
     private float coyoteTimeCounter;
+    [Header("Wall Jump Settings")]
+    public Transform frontCheck;// Check for wall in front
+    public LayerMask whatIsWall;
+    public float wallSlideSpeed;
+    public Vector2 wallJumpForce;// Force applied when wall jumping
+    public float wallJumpTime = 0.2f; // Time to wall jump
+    public bool isTouchingWall;
+    public bool isWallSliding;
+    public bool isWallJumping;
 
     void Awake()
     {
@@ -65,12 +74,37 @@ public class PlayerController : MonoBehaviour,IDamageable
 
     void Update()
     {
+        if (isWallJumping) return;
         if (isDashing) return; // Lock input while dashing
 
         // 1. Input Processing
-        moveInput = Input.GetAxisRaw("Horizontal"); // GetAxisRaw is snappier
+        moveInput = Input.GetAxisRaw("Horizontal"); 
 
-        // 2. Ground Check
+        // 2. Wall Logic (Check first)
+        isTouchingWall = Physics2D.OverlapCircle(frontCheck.position, checkRadius, whatIsWall);
+        
+        if(isTouchingWall && !isGrounded && rb.velocity.y < 0)
+        {
+            isWallSliding = true;
+        }
+        else 
+        {
+            isWallSliding = false;
+        }
+
+        if(isWallSliding)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, Mathf.Clamp(rb.velocity.y, -wallSlideSpeed, float.MaxValue));
+        }
+
+        // 3. Wall Jump (Highest Priority Jump)
+        if(Input.GetButtonDown("Jump") && isWallSliding)
+        {
+            WallJump();
+            return; // Exit Update to prevent double jump logic
+        }
+
+        // 4. Ground Check
         isGrounded = Physics2D.OverlapCircle(feetPos.position, checkRadius, ground);
 
         // 3. Coyote Time Logic
@@ -94,7 +128,7 @@ public class PlayerController : MonoBehaviour,IDamageable
         }
 
         // 5. Execute Jump
-        if (coyoteTimeCounter > 0f && jumpBufferCounter > 0f)
+        if (coyoteTimeCounter > 0f && jumpBufferCounter > 0f && !isWallJumping)
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
             jumpBufferCounter = 0f;
@@ -102,7 +136,7 @@ public class PlayerController : MonoBehaviour,IDamageable
         }
 
         // 6. Variable Jump Height (holding button jumps higher)
-        if (Input.GetButtonUp("Jump") && rb.velocity.y > 0f)
+        if (Input.GetButtonUp("Jump") && rb.velocity.y > 0f && !isWallJumping)
         {
             rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
         }
@@ -122,11 +156,33 @@ public class PlayerController : MonoBehaviour,IDamageable
         // 9. Flip Character
         if (moveInput > 0) transform.localScale = new Vector3(1, 1, 1);
         else if (moveInput < 0) transform.localScale = new Vector3(-1, 1, 1);
+        //
+    }
+    void WallJump()
+    {
+        isWallJumping = true;
+        
+        Invoke("StopWallJumping", wallJumpTime);
+        int wallDir = transform.localScale.x > 0 ? 1 : -1;
+        rb.velocity = new Vector2(-wallDir * wallJumpForce.x, wallJumpForce.y);
+        
+        // Prevent accidental double jump (Coyote/Buffer)
+        jumpBufferCounter = 0f;
+        coyoteTimeCounter = 0f;
+
+        // Flip character immediately to face away from wall
+        transform.localScale = new Vector3(-wallDir, 1, 1);
+    }
+    void StopWallJumping()
+    {
+        isWallJumping = false;
     }
 
     void FixedUpdate()
     {
         if (isDashing) return;
+        if (isWallJumping) return; // Lock movement while wall jumping
+
         rb.velocity = new Vector2(moveInput * moveSpeed, rb.velocity.y);
     }
 
