@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
+using System.Reflection;
 
 public class PlayerController : MonoBehaviour,IDamageable
 { 
@@ -27,6 +28,7 @@ public class PlayerController : MonoBehaviour,IDamageable
     [Header("Combat System")]
     public Transform attackPoint;
     public WeaponData currentWeapon;
+    public Animator weaponAnimator;
     private float nextAttackTime = 0f;
 
     [Header("Dash Settings")]
@@ -184,6 +186,11 @@ public class PlayerController : MonoBehaviour,IDamageable
         if(currentWeapon == null) return;
         if(Time.time >= nextAttackTime)
         {
+            // 播放攻击动画
+            if(weaponAnimator != null)
+            {
+                weaponAnimator.SetTrigger("Attack");
+            }
             currentWeapon.Attack(this);
             nextAttackTime = Time.time + currentWeapon.cooldown;
         }

@@ -90,7 +90,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
     void PatrolLogic()
     {
         // Simple Sine wave patrol (Left-Right oscillation)
-        float patrolOffset = Mathf.Sin(Time.time) * 2f; 
+        float patrolOffset = Mathf.Sin(Time.time) * 3f; 
         float targetX = startPos.x + patrolOffset;
         
         Vector2 dir = (targetX > transform.position.x) ? Vector2.right : Vector2.left;
@@ -138,7 +138,6 @@ public class EnemyAI : MonoBehaviour, IDamageable
     }
 
     // --- IDamageable Interface ---
-
     public void TakeDamage(int amount, Vector3 sourcePosition, float knockbackForce)
     {
         if (currentHealth <= 0) return;

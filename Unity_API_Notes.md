@@ -1,5 +1,36 @@
 # Unity 学习与面试笔记
 
+## 10. Platformer Feel (平台跳跃手感)
+- **Coyote Time (土狼时间)**:
+  - *定义*: 玩家离开地面的一瞬间（比如 0.1s 内），仍然允许起跳。
+  - *原理*: 用一个计时器 `coyoteTimeCounter`，在地面时重置，离地后递减。只要 `counter > 0` 就可以跳。
+  - *作用*: 极大提升手感，防止玩家在平台边缘因为按晚了几帧而掉下去。
+- **Jump Buffer (跳跃预输入)**:
+  - *定义*: 玩家在落地前一瞬间按下跳跃，落地时自动起跳。
+  - *原理*: 按下跳跃键时设置 `jumpBufferCounter`，Update 中递减。落地时检查 `buffer > 0` 则起跳。
+  - *作用*: 让操作感觉更流畅，不需要精确到帧的反应。
+
+## 11. Tilemap (瓦片地图) & 物理优化
+- **Tilemap Collider 2D**: 给每个瓦片添加独立碰撞体。
+- **Composite Collider 2D (复合碰撞体)**:
+  - *作用*: 将相邻的无数小碰撞体合并成一个大碰撞体，优化性能并解决物理 bug。
+  - *关键设置*: 
+    1. Tilemap Collider 2D 必须勾选 **Used By Composite**。
+    2. Rigidbody 2D (自动添加) 的 **Body Type** 必须设为 **Static** (否则地图会掉下去)。
+  - *常见 Bug*: **Ghost Collision (卡脚/粘墙)**。角色在平地上走不动或被绊倒，通常就是因为没开 Composite，导致角色卡在两个瓦片的微小接缝里。
+
+## 12. Animation (动画系统)
+- **Loop Time**:
+  - *位置*: 动画文件 (.anim) 的 Inspector 中。
+  - *作用*: 决定动画是否无限循环。**攻击/跳跃等单次动作必须取消勾选**，否则会抽搐或停不下来。
+- **Entry & Default State**:
+  - *Entry (入口)*: 状态机启动时的第一站。
+  - *修改默认*: 右键任意 State -> **Set as Layer Default State** (变成橘黄色)。
+- **Transitions (连线)**:
+  - **Has Exit Time**:
+    - *勾选*: 必须等当前动画播放完 (或播到 Exit Time 设定值) 才能切换。适用于 `Attack -> Idle` (打完收招)。
+    - *不勾选*: 只要条件满足 (如 Trigger 触发) 立即切换。适用于 `Idle -> Attack` (立即出招)。
+
 ## 1. Physics 2D (物理系统)
 - **OverlapCircle**: 
   - 用途：用于地面检测 (Ground Check) 或 攻击判定。
@@ -69,3 +100,19 @@
   ```
 - **好处**: 其他脚本可以直接通过 `UIManager.instance.Method()` 调用，无需在 Inspector 中拖拽引用。
 - **面试点**: 什么时候用单例？（全局管理、跨场景数据）。缺点是什么？（高耦合、生命周期难管理）。
+
+## 8. Game Feel (游戏手感/打击感)
+- **Juice (多汁感)**: 指通过视觉/听觉反馈让游戏更“爽”的技术美术手段。即便没有美术素材，也可以通过以下方式极大提升打击感：
+  - **Screen Shake (屏幕震动)**: 最核心手段。
+  - **Hit Stop (顿帧)**: 攻击命中瞬间暂停 0.05~0.1s，模拟阻力。
+  - **Knockback (击退)**: 物理力反馈。
+  - **Flash (闪白)**: 视觉反馈。
+  - **Particles (粒子)**: 模拟火花/血液。
+
+## 9. Cinemachine (虚拟相机系统)
+- **Impulse System (震动系统)**:
+  - **Source (震动源)**: 也就是发出震动的一方 (如 Player 受伤时)。组件 `Cinemachine Impulse Source`。
+    - *关键设置*: `Impulse Shape` (Bump/Recoil) 定义波形；`GenerateImpulse(force)` 发送信号。
+  - **Listener (监听者)**: 也就是相机 (Virtual Camera)。扩展组件 `Cinemachine Impulse Listener`。
+    - *原理*: 监听特定 Channel 的震动信号并施加到相机位置。
+  - *面试点*: 为什么用 Cinemachine 震动而不用代码写 `transform.position` 抖动？(因为 Cinemachine 会接管相机位置，手动修改会被覆盖；且 Impulse 系统更平滑、支持多源混合)。
