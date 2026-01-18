@@ -31,6 +31,33 @@
     - *勾选*: 必须等当前动画播放完 (或播到 Exit Time 设定值) 才能切换。适用于 `Attack -> Idle` (打完收招)。
     - *不勾选*: 只要条件满足 (如 Trigger 触发) 立即切换。适用于 `Idle -> Attack` (立即出招)。
 
+## 13. Advanced Movement (高级移动 - 蹬墙跳)
+- **核心逻辑**:
+  - **Wall Check**: 射线/OverlapCircle 检测前方是否有墙 (Layer: Ground)。
+  - **Wall Slide (滑墙)**: 空中 + 贴墙 + 下落状态 -> 限制 `rb.velocity.y` 为一个小负值 (如 -2)。
+  - **Wall Jump (蹬墙跳)**:
+    - 施加反向力: `new Vector2(-wallDir * forceX, forceY)`。
+    - **关键难点 (面试考点)**: **Control Lock (操作锁定)**。
+      - *现象*: 如果不锁定，玩家按住墙方向键会瞬间抵消反向力，导致跳不远。
+      - *解决*: 蹬墙跳后 0.1~0.2s 内，**完全屏蔽**水平移动输入 (`moveInput`)。
+
+- **Input Priority (输入优先级)**:
+  - `WallJump` > `RegularJump`。
+  - 触发 WallJump 时，必须**清空** `CoyoteTime` 和 `JumpBuffer`，防止一键双跳 (斜跳后紧接着又判定一次直跳)。
+
+## 14. One Way Platform (单向平台)
+- **组件配置**:
+  - **Platform Effector 2D**: 
+    - *原理*: 控制碰撞体的有效角度。默认 `Surface Arc = 180` 表示只有上方碰撞有效，从而实现“从下往上跳能穿过，落下来能踩住”。
+    - *必须勾选*: Collider 2D 组件上的 **Used By Effector**。
+- **下跳机制 (Down + Jump)**:
+  - *核心 API*: `Physics2D.IgnoreCollision(playerCollider, platformCollider, true)`。
+  - *逻辑*:
+    1. `OnCollisionEnter2D` 记录当前踩着的平台 (`oneWayPlatform`)。
+    2. 按下跳组合键时，开启 IgnoreCollision (忽略碰撞)。
+    3. 协程等待 0.2~0.5s 后，关闭 IgnoreCollision (恢复碰撞)。
+  - *面试点*: 为什么不用 Trigger 或修改 Layer？(因为 IgnoreCollision 是点对点的，不会导致玩家掉穿地面或其他物体，更安全)。
+
 ## 1. Physics 2D (物理系统)
 - **OverlapCircle**: 
   - 用途：用于地面检测 (Ground Check) 或 攻击判定。
