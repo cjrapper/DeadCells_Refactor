@@ -58,6 +58,23 @@
     3. 协程等待 0.2~0.5s 后，关闭 IgnoreCollision (恢复碰撞)。
   - *面试点*: 为什么不用 Trigger 或修改 Layer？(因为 IgnoreCollision 是点对点的，不会导致玩家掉穿地面或其他物体，更安全)。
 
+## 15. One Way Platform Grounded Fix (单向平台落地判定优化)
+- **问题**: 单向平台被 Ground 检测命中，导致角色“穿过平台时”被误判为落地，从而可以半空跳。
+- **解决方案**:
+  - 地面检测只勾 **Ground** Layer。
+  - 单向平台单独建 Layer (如 `OneWayPlatform`)，用第二个 `OverlapCircle` 检测 `isOnOneWay`。
+  - 跳跃判定使用 `isJumpable = isGrounded || isOnOneWay`，并在穿透时禁用 `isOnOneWay`。
+- **面试点**: LayerMask 的“过滤”思想能有效避免误判和逻辑耦合。
+
+## 16. Enemy Telegraph (敌人攻击前摇)
+- **核心流程**: `Chase -> Telegraph -> Attack -> Chase`。
+- **Telegraph 要点**:
+  - 前摇期间停止移动、显示感叹号。
+  - 协程延时结束后再决定是否进入 Attack。
+  - 受击进入 Hurt 时需要中断前摇协程，防止状态被覆盖。
+- **Attack 要点**:
+  - 只在 `Time.time >= nextAttackTime` 时执行一次伤害，然后切回 Chase。
+
 ## 1. Physics 2D (物理系统)
 - **OverlapCircle**: 
   - 用途：用于地面检测 (Ground Check) 或 攻击判定。

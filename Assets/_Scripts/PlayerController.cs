@@ -48,6 +48,7 @@ public class PlayerController : MonoBehaviour, IDamageable
     public CinemachineImpulseSource impulseSource;
 
     [Header("One Way Platform Settings")]
+    public LayerMask oneWayPlatformLayer;
     public float platformFallForce = -10f; // 下落时的向下初始速度，增强手感
     public float platformFallTime = 0.5f;  // 忽略碰撞的时间
     private Collider2D playerCollider;     // 缓存玩家碰撞体
@@ -69,6 +70,7 @@ public class PlayerController : MonoBehaviour, IDamageable
     private Rigidbody2D rb;
     private float moveInput;
     private bool isGrounded;
+    private bool isOnOneWay;
     private bool isHurting; // 受击状态锁：受击时暂时锁定控制
     private float jumpBufferCounter;
     private float coyoteTimeCounter;
@@ -132,10 +134,12 @@ public class PlayerController : MonoBehaviour, IDamageable
 
         // 4. Ground Check
         isGrounded = Physics2D.OverlapCircle(feetPos.position, checkRadius, ground);
+        isOnOneWay = !isFallingThroughPlatform && Physics2D.OverlapCircle(feetPos.position, checkRadius, oneWayPlatformLayer);
+        bool isJumpable = isGrounded || isOnOneWay;
 
         // 3. Coyote Time Logic (土狼时间)
         // 允许玩家在离开平台的一小段时间内（coyoteTime）仍然可以起跳，优化手感
-        if (isGrounded)
+        if (isJumpable)
         {
             coyoteTimeCounter = coyoteTime;
         }

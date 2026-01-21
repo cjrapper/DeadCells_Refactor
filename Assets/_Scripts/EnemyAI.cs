@@ -9,7 +9,11 @@ public class EnemyAI : MonoBehaviour, IDamageable
     public float attackCooldown = 2f;
     public int damage = 10;
     public float knockbackForce = 10f;
-    private float nextAttackTime;
+    private float nextAttackTime = 0.3f;
+    public GameObject alertIcon;
+    public float windupTime;
+    private bool isWindingUp;
+    private Coroutine telegraphCoroutine;
 
     [Header("Stats")]
     [SerializeField] private int health = 100;
@@ -28,7 +32,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
     private SpriteRenderer sr;
 
     // State Machine 
-    public enum State { Patrol, Chase, Hurt ,Attack}
+    public enum State { Patrol, Chase, Hurt ,Telegraph,Attack}
     public State currentState;
 
     void Awake()
@@ -47,6 +51,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
     {
         // State transitions logic only
         if (currentState == State.Hurt) return;
+        if (player == null) return;
 
         float dist = Vector2.Distance(transform.position, player.position);
 
@@ -56,8 +61,12 @@ public class EnemyAI : MonoBehaviour, IDamageable
         }
         else if (currentState == State.Chase)
         {
-            if(dist < attackRange) currentState = State.Attack;
+            if(dist < attackRange) currentState = State.Telegraph;
             else if (dist > escapeRange) currentState = State.Patrol;
+        }
+        else if(currentState == State.Telegraph)
+        {
+            if(dist >= attackRange) currentState = State.Chase;
         }
         else if(currentState == State.Attack)
         {
@@ -81,6 +90,9 @@ public class EnemyAI : MonoBehaviour, IDamageable
                 break;
             case State.Attack:
                 AttackLogic();
+                break;
+            case State.Telegraph:
+                TelegraphLogic();
                 break;
         }
     }
@@ -122,18 +134,50 @@ public class EnemyAI : MonoBehaviour, IDamageable
         scale.x *= -1;
         transform.localScale = scale;
     }
+    void TelegraphLogic()
+    {
+        rb.velocity = Vector2.zero;
+        if(!isWindingUp)
+        {
+            isWindingUp = true;
+            if (alertIcon != null) alertIcon.SetActive(true);
+            telegraphCoroutine = StartCoroutine(TelegraphRoutine());
+        }
+    }
+    IEnumerator TelegraphRoutine()
+    {
+        yield return new WaitForSeconds(windupTime);
+        if (currentState != State.Telegraph) yield break;
+        if (alertIcon != null) alertIcon.SetActive(false);
+        isWindingUp = false;
+        if (player == null)
+        {
+            currentState = State.Patrol;
+            yield break;
+        }
+        float dist = Vector2.Distance(transform.position, player.position);
+        if(dist < attackRange) currentState = State.Attack;
+        else currentState = State.Chase;
+    }
+
 
     void AttackLogic()
     {
         rb.velocity = Vector2.zero;
+        if (player == null)
+        {
+            currentState = State.Patrol;
+            return;
+        }
         if(Time.time > nextAttackTime)
         {
             IDamageable target = player.GetComponent<IDamageable>();
             if(target != null)
             {
                 target.TakeDamage(damage, transform.position, knockbackForce);
-                nextAttackTime = Time.time + attackCooldown;
             }
+            nextAttackTime = Time.time + attackCooldown;
+            currentState = State.Chase;
         }
     }
 
@@ -144,6 +188,13 @@ public class EnemyAI : MonoBehaviour, IDamageable
 
         currentHealth -= amount;
         currentState = State.Hurt; // Lock movement state
+        if (telegraphCoroutine != null)
+        {
+            StopCoroutine(telegraphCoroutine);
+            telegraphCoroutine = null;
+        }
+        isWindingUp = false;
+        if (alertIcon != null) alertIcon.SetActive(false);
         
         // 1. Knockback
         if (rb != null)
