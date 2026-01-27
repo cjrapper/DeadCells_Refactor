@@ -34,7 +34,5 @@ public class SwordWeapon : WeaponData
         {
             HitStop.Stop(0.05f);
         }
-
-        Debug.Log($"Used {weaponName}, hit {hitRange.Length} targets");
     }
 }

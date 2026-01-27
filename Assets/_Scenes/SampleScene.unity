@@ -8773,7 +8773,7 @@ Tilemap:
     m_Data: {r: 1, g: 1, b: 1, a: 1}
   m_TileObjectToInstantiateArray: []
   m_AnimationFrameRate: 1
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.1509434, g: 0.07452236, b: 0.07452236, a: 1}
   m_Origin: {x: -159, y: -51, z: 0}
   m_Size: {x: 198, y: 70, z: 1}
   m_TileAnchor: {x: 0.5, y: 0.5, z: 0}
@@ -9252,12 +9252,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 89413494}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.49, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.04, y: 0.99, z: 0}
   m_LocalScale: {x: 0.2, y: 2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 708413478}
+  m_Father: {fileID: 1565603562}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &89413496
 SpriteRenderer:
@@ -9301,7 +9301,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.509434, g: 0, b: 0, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -9968,7 +9968,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.1509434, g: 0.107748896, b: 0.107748896, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -10004,8 +10004,8 @@ GameObject:
   - component: {fileID: 697231760}
   - component: {fileID: 697231759}
   - component: {fileID: 697231758}
-  - component: {fileID: 697231761}
   - component: {fileID: 697231762}
+  - component: {fileID: 697231763}
   m_Layer: 7
   m_Name: Enemy
   m_TagString: Untagged
@@ -10100,7 +10100,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.273312, g: 0.57861626, b: 0.2674735, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -10126,30 +10126,6 @@ Transform:
   - {fileID: 1260393339}
   m_Father: {fileID: 849770694}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &697231761
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 697231756}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ecd5bac018edde84f9014be35d76c691, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  attackRange: 1.5
-  attackCooldown: 2
-  damage: 10
-  knockbackForce: 10
-  alertIcon: {fileID: 1260393338}
-  windupTime: 0
-  health: 100
-  moveSpeed: 3.5
-  chaseRange: 5
-  escapeRange: 8
-  player: {fileID: 1784005149}
-  currentState: 0
 --- !u!50 &697231762
 Rigidbody2D:
   serializedVersion: 4
@@ -10177,6 +10153,34 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
+--- !u!114 &697231763
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 697231756}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dec518ed72061b848b45b461f0502777, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 1784005149}
+  moveSpeed: 5
+  chaseSpeed: 7
+  chaseRange: 5
+  startPos: {x: 0, y: 0, z: 0}
+  maxHealth: 100
+  attackRange: 1.5
+  damage: 1
+  windupTime: 0.3
+  attackDuration: 0.2
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 512
+  attackPos: {fileID: 1260393339}
+  jumpForce: 5
+  jumpAmount: 0.1
 --- !u!1 &708413477
 GameObject:
   m_ObjectHideFlags: 0
@@ -10186,7 +10190,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 708413478}
-  - component: {fileID: 708413479}
   m_Layer: 0
   m_Name: WeaponHolder
   m_TagString: Untagged
@@ -10207,30 +10210,9 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 89413495}
+  - {fileID: 1565603562}
   m_Father: {fileID: 1784005149}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!95 &708413479
-Animator:
-  serializedVersion: 5
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 708413477}
-  m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: 498942d06bc9a454088bfba16c7b9f8e, type: 2}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &849770693
 GameObject:
   m_ObjectHideFlags: 0
@@ -10459,6 +10441,38 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1473334302}
   m_CullTransparentMesh: 1
+--- !u!1 &1565603561
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1565603562}
+  m_Layer: 0
+  m_Name: SwordPivot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1565603562
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1565603561}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: -0.53, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 89413495}
+  m_Father: {fileID: 708413478}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1784005144
 GameObject:
   m_ObjectHideFlags: 0
@@ -10473,7 +10487,7 @@ GameObject:
   - component: {fileID: 1784005146}
   - component: {fileID: 1784005145}
   - component: {fileID: 1784005150}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10504,7 +10518,42 @@ MonoBehaviour:
     m_Bits: 64
   attackPoint: {fileID: 279894919}
   currentWeapon: {fileID: 11400000, guid: 8edc2531920a78d43a37b4d6877dbec9, type: 2}
-  weaponAnimator: {fileID: 708413479}
+  weaponPivot: {fileID: 1565603562}
+  swingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.19722223
+      value: 1.0038422
+      inSlope: -0.021155478
+      outSlope: -0.021155478
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 1
+      outWeight: 0.27978402
+    - serializedVersion: 3
+      time: 0.99722224
+      value: 0.005416415
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  swingDuration: 0.25
+  maxSwingAngle: 120
   dashSpeed: 15
   dashTime: 0.2
   dashCooldown: 1
@@ -10639,7 +10688,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: -9095717837082945937, guid: 207ee8102dd4143d288186ef0be518ee, type: 3}
-  m_Color: {r: 0.40138835, g: 0.7735849, b: 0.4380673, a: 1}
+  m_Color: {r: 0.579838, g: 0.38180837, b: 0.735849, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0

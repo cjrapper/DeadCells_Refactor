@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
-using System.IO;
 
 public class PlayerController : MonoBehaviour, IDamageable
 { 
@@ -30,10 +29,12 @@ public class PlayerController : MonoBehaviour, IDamageable
     [Header("Combat System")]
     public Transform attackPoint;
     public WeaponData currentWeapon;
-    public Animator weaponAnimator;
+    public Transform weaponPivot;
+    public AnimationCurve swingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+    public float swingDuration = 0.25f;
+    public float maxSwingAngle = 120f;
     private float nextAttackTime = 0f;
-    // 性能优化：使用 Hash ID 代替字符串，提升 SetTrigger 性能
-    private static readonly int AttackAnimID = Animator.StringToHash("Attack");
+    private Coroutine swingCoroutine;
 
     [Header("Dash Settings")]
     public float dashSpeed = 15f;
@@ -89,6 +90,10 @@ public class PlayerController : MonoBehaviour, IDamageable
 
         sr = GetComponent<SpriteRenderer>();
         currentHealth = maxHealth;
+        if (weaponPivot == null && attackPoint != null)
+        {
+            weaponPivot = attackPoint;
+        }
     }
 
     void Update()
@@ -236,7 +241,11 @@ public class PlayerController : MonoBehaviour, IDamageable
         if (isDashing) return;
         if (isWallJumping) return; // Lock movement while wall jumping
 
-        rb.velocity = new Vector2(moveInput * moveSpeed, rb.velocity.y);
+        // 平滑移动逻辑：受击刚结束时，允许保留一定的水平惯性
+        float targetVelocityX = moveInput * moveSpeed;
+        float acceleration = isGrounded ? 50f : 25f; // 地面和空中的加速度不同，手感更好
+        float newX = Mathf.MoveTowards(rb.velocity.x, targetVelocityX, acceleration * Time.fixedDeltaTime);
+        rb.velocity = new Vector2(newX, rb.velocity.y);
     }
 
     public void TakeDamage(int amount,Vector3 sourcePosition, float knockbackForce)
@@ -297,20 +306,45 @@ public class PlayerController : MonoBehaviour, IDamageable
         Time.timeScale = 0f;
     }
 
+    IEnumerator PlaySwingCurve()
+    {
+        if (weaponPivot == null || swingDuration <= 0f || swingCurve == null)
+        {
+            swingCoroutine = null;
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < swingDuration)
+        {
+            float progress = elapsed / swingDuration;
+            float curveValue = swingCurve.Evaluate(progress);
+            weaponPivot.localRotation = Quaternion.Euler(0f, 0f, -curveValue * maxSwingAngle);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        weaponPivot.localRotation = Quaternion.identity;
+        swingCoroutine = null;
+    }
+
+    bool CanAttack()
+    {
+        return currentWeapon != null && Time.time >= nextAttackTime;
+    }
+
+    void StartSwing()
+    {
+        if (swingCoroutine != null) StopCoroutine(swingCoroutine);
+        swingCoroutine = StartCoroutine(PlaySwingCurve());
+    }
+
     void TryAttack()
     {
-        if(currentWeapon == null) return;
-        if(Time.time >= nextAttackTime)
-        {
-            // 播放攻击动画
-            if(weaponAnimator != null)
-            {
-                // 性能优化：使用 Hash ID
-                weaponAnimator.SetTrigger(AttackAnimID);
-            }
-            currentWeapon.Attack(this);
-            nextAttackTime = Time.time + currentWeapon.cooldown;
-        }
+        if (!CanAttack()) return;
+        StartSwing();
+        currentWeapon.Attack(this);
+        nextAttackTime = Time.time + currentWeapon.cooldown;
     }
 
     // 受击硬直协程
