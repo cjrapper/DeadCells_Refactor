@@ -7,6 +7,7 @@ public abstract class Enemy : MonoBehaviour, IDamageable
 {
     public Rigidbody2D rb { get; private set; }
     public SpriteRenderer sr { get; private set; }
+    public Collider2D bodyCollider { get; private set; }
     public Transform player;
 
     [Header("Base Settings")]
@@ -24,8 +25,11 @@ public abstract class Enemy : MonoBehaviour, IDamageable
     public int damage = 1;
     public float windupTime = 0.3f; // 攻击预警时间
     public float attackDuration = 0.2f; // 攻击动作持续时间
+    public float attackCooldown = 0.6f;
+    public float lungeSpeed = 10f; // 冲刺速度
     public LayerMask playerLayer;
     public Transform attackPos;
+    public GameObject alertSign;
 
     // 状态机
     public EnemyStateMachine StateMachine { get; private set; }
@@ -39,7 +43,9 @@ public abstract class Enemy : MonoBehaviour, IDamageable
     {
         rb = GetComponent<Rigidbody2D>();
         sr = GetComponent<SpriteRenderer>();
+        bodyCollider = GetComponent<Collider2D>();
         currentHealth = maxHealth;
+        alertSign.SetActive(false);
 
         StateMachine = new EnemyStateMachine();
         patrolState = new PatrolState(this, StateMachine);
@@ -67,6 +73,16 @@ public abstract class Enemy : MonoBehaviour, IDamageable
 
     // 视觉更新虚方法，子类重写以实现各自的动画表现
     public virtual void UpdateVisuals() { }
+
+    public bool CanAttack()
+    {
+        return Time.time >= nextAttackTime;
+    }
+
+    public void RegisterAttack()
+    {
+        nextAttackTime = Time.time + attackCooldown;
+    }
 
     public virtual void TakeDamage(int amount, Vector3 sourcePosition, float knockbackForce)
     {
@@ -99,6 +115,19 @@ public abstract class Enemy : MonoBehaviour, IDamageable
             yield return new WaitForSeconds(0.1f);
             sr.color = originalColor;
         }
+    }
+
+    private float nextAttackTime;
+
+    public Vector3 GetBackCenter()
+    {
+        if (bodyCollider != null)
+        {
+            Bounds bounds = bodyCollider.bounds;
+            float facing = transform.localScale.x >= 0f ? 1f : -1f;
+            return new Vector3(bounds.center.x - facing * bounds.extents.x, bounds.center.y, bounds.center.z);
+        }
+        return transform.position;
     }
 
     protected virtual void Die()

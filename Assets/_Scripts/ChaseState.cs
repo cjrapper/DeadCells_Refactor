@@ -26,7 +26,7 @@ public class ChaseState : EnemyState
         {
             stateMachine.ChangeState(enemy.patrolState);
         }
-        else if(dist < enemy.attackRange)
+        else if(dist < enemy.attackRange && enemy.CanAttack())
         {
             stateMachine.ChangeState(enemy.telegraphState);
         }
