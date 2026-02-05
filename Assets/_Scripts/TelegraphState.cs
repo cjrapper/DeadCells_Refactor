@@ -23,7 +23,6 @@ public class TelegraphState : EnemyState
     }
     protected IEnumerator PopUp(GameObject alertSign)
     {
-        float popUpTime = 0.2f;
         float popUpSpeed = 5f;
         float popUpDelay = 0.1f;
 

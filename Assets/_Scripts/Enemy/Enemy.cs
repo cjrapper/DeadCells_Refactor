@@ -57,6 +57,11 @@ public abstract class Enemy : MonoBehaviour, IDamageable
 
     protected virtual void Start()
     {
+        if (player == null)
+        {
+            GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+            if (playerObj != null) player = playerObj.transform;
+        }
         startPos = transform.position;
         StateMachine.Initialize(patrolState);
     }

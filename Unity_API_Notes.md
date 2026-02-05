@@ -66,6 +66,22 @@
   - 跳跃判定使用 `isJumpable = isGrounded || isOnOneWay`，并在穿透时禁用 `isOnOneWay`。
 - **面试点**: LayerMask 的“过滤”思想能有效避免误判和逻辑耦合。
 
+## 20. Variable Gravity (变量重力)
+- **原理**: 根据玩家的垂直速度（`velocity.y`）动态调整 `Rigidbody2D.gravityScale`。
+- **配置**:
+  - `jumpGravityScale` (上升重力): 较小（如 1.0），让跳跃感觉更轻盈，上升更高。
+  - `fallGravityScale` (下降重力): 较大（如 2.5），让下落更迅速，减少滞空时的“漂浮感”。
+- **优势**: 
+  - 提升打击感和操作精确度。
+  - 配合“长按跳得高，短按跳得低”逻辑，能实现极佳的平台跳跃手感。
+
+## 21. Input-Lock during Wall Jump (蹬墙跳输入锁定)
+- **问题**: 蹬墙跳时，如果玩家依然按住墙的方向键，状态机可能会立即将角色转回墙面，抵消掉向外的推力。
+- **解决方案**: 
+  - 在转向逻辑中添加判断：`if (currentState != WallJumpState)`。
+  - 或者在蹬墙跳瞬间通过协程锁定 `MoveInput` 约 0.1s~0.2s。
+
+
 ## 16. Enemy Telegraph (敌人攻击前摇)
 - **核心流程**: `Chase -> Telegraph -> Attack -> Chase`。
 - **Telegraph 要点**:
@@ -81,6 +97,61 @@
   - 语法：`Physics2D.OverlapCircle(point, radius, layerMask)`
   - *面试点*：相比 Raycast，它能检测一个圆形区域，更适合判定脚底是否接触地面，防止边缘判定失效。
 
+## 17. Hierarchical State Machine (分层状态机 - HSM)
+- **核心思想**: 将状态组织成树状结构。子状态可以继承父状态的通用逻辑（如在空中状态下都能移动）。
+- **结构示例**:
+  - `Root (PlayerState)`: 定义 `Enter`, `Exit`, `LogicUpdate`, `PhysicsUpdate` 等基础虚方法。
+  - `SuperState (GroundedState)`: 处理地面通用输入（如跳跃、冲刺检测）。
+    - `SubState (IdleState)`: 速度为 0。
+    - `SubState (MoveState)`: 处理左右移动。
+- **优势 (面试必考)**:
+  - **减少代码冗余**: 不需要每个状态都写一遍移动输入检测。
+  - **逻辑清晰**: 通过 `base.LogicUpdate()` 轻松复用父类行为。
+  - **易于扩展**: 增加新功能（如二段跳）只需修改父类或增加子类，不影响现有逻辑。
+
+## 18. Object Pooling (对象池模式)
+- **场景**: 频繁生成和销毁的对象（如子弹、残影、粒子特效）。
+- **原理**: 
+  - 启动时预先创建一批对象（Prewarm）。
+  - 需要时从池中取（`SetActive(true)`）。
+  - 用完后归还池中（`SetActive(false)`），而不是 `Destroy`。
+- **关键代码 (SamplePool)**:
+  - `Queue<GameObject> pool`: 使用队列存储闲置对象。
+  - `Get()`: 判空则 `Instantiate`，否则 `Dequeue`。
+  - `Return()`: `Enqueue` 并重置对象状态。
+- **面试点**: 为什么要用对象池？（减少垃圾回收 GC 压力，避免频繁分配内存导致的瞬间卡顿）。
+
+## 19. Ghost Trail Effect (残影特效)
+- **实现方案**:
+  - 每隔一定时间从对象池取出一个残影。
+  - **关键步骤**: 将当前主角的 `Sprite` 赋值给残影的 `SpriteRenderer`。
+  - **动画处理**: 使用协程或 DoTween 让残影的 Alpha 值随时间递减到 0，然后归还池中。
+- **触发机制**: 通常在速度超过一定阈值（如冲刺或蹬墙跳）时开启计时器生成。
+
+## 24. Effect System Decoupling & Control (特效系统解耦与控制)
+- **问题**: 仅靠速度判断生成残影（Ghost Effect）不精确，且容易受数值配置影响（如速度刚好在阈值边缘时抖动）。
+- **解决方案**:
+  - **接口化**: 在 `PLayerEffect` 中提供 `SetEffectActive(bool)` 接口。
+  - **状态机介入**: 
+    - 在 `DashState.Enter` 时调用 `SetEffectActive(true)`。
+    - 在 `DashState.Exit` 时调用 `SetEffectActive(false)`。
+  - **容错处理**: 在 `Awake` 中使用 `GameObject.Find()` 自动寻找丢失的对象池引用，增强系统的鲁棒性。
+- **面试点**: 为什么不直接在 State 里写生成代码？（解耦。状态机只负责逻辑切换，特效脚本负责表现细节，方便后期更换表现方式而无需改动逻辑）。
+
+
+// 25. 创建样式对象，并从默认的 "Box" 样式继承属性
+// GUI.skin.box 是 Unity 内置的一个半透明黑色圆角矩形样式
+GUIStyle style = new GUIStyle(GUI.skin.box); 
+
+// 2. 自定义修改
+style.alignment = TextAnchor.UpperLeft; // 文字左上对齐
+style.fontSize = 18;                    // 字体变大（默认好像是12或13）
+style.normal.textColor = Color.white;   // 设置普通状态下的文字颜色
+style.padding = new RectOffset(10, 10, 10, 10); // 设置内边距 (左,右,上,下)
+
+// 3. 应用样式
+// 在绘制 Box 或 Label 时，把 style 作为最后一个参数传进去
+GUI.Box(new Rect(10, 10, 200, 140), info, style);
 - **Rigidbody2D**:
   - `velocity`: 直接修改速度，适合跳跃或瞬间移动。
   - `AddForce(force, ForceMode2D.Impulse)`: 施加瞬间力（如击退、爆炸）。
@@ -145,6 +216,22 @@
 - **好处**: 其他脚本可以直接通过 `UIManager.instance.Method()` 调用，无需在 Inspector 中拖拽引用。
 - **面试点**: 什么时候用单例？（全局管理、跨场景数据）。缺点是什么？（高耦合、生命周期难管理）。
 
+## 22. Combat System Optimization (战斗系统优化)
+- **Attack Cooldown (攻击冷却)**:
+  - **实现**: 使用 `nextAttackTime = Time.time + cooldown`。
+  - **状态机结合**: 在 `LogicUpdate` 中根据 `CanAttack()` 判定是否允许切入 `AttackState`。
+- **Air Attack (空中攻击)**:
+  - **逻辑**: 在 `InAirState` 或其子类中添加攻击按键检测。
+  - **体验**: 空中攻击通常不应重置垂直速度，或者仅在第一击时有轻微的滞空效果（通过修改 `gravityScale` 实现）。
+
+## 23. Inspector Configuration Checklist (配置检查清单)
+- **Wall Movement**:
+  - `Wall Slide Speed`: 必须大于 0 (推荐 2~4)，否则会卡在墙上。
+  - `Wall Jump Force`: 必须设置 X 和 Y 分量 (推荐 10, 12)，否则无法弹开。
+- **Detection Points**:
+  - `Front Check`: 必须位于角色前方且偏移量适中，建议不要复用攻击判定点以防冲突。
+
+
 ## 8. Game Feel (游戏手感/打击感)
 - **Juice (多汁感)**: 指通过视觉/听觉反馈让游戏更“爽”的技术美术手段。即便没有美术素材，也可以通过以下方式极大提升打击感：
   - **Screen Shake (屏幕震动)**: 最核心手段。
@@ -160,3 +247,39 @@
   - **Listener (监听者)**: 也就是相机 (Virtual Camera)。扩展组件 `Cinemachine Impulse Listener`。
     - *原理*: 监听特定 Channel 的震动信号并施加到相机位置。
   - *面试点*: 为什么用 Cinemachine 震动而不用代码写 `transform.position` 抖动？(因为 Cinemachine 会接管相机位置，手动修改会被覆盖；且 Impulse 系统更平滑、支持多源混合)。
+
+## 25. Animation: SetBool vs CrossFade (动画状态切换)
+- **SetBool / SetTrigger**:
+  - *原理*: 修改 Animator 中的参数，依赖 Animator 窗口中手动连线 (Transitions) 和条件 (Conditions) 来切换状态。
+  - *缺点*: 
+    - **逻辑割裂**: 代码里写了一半逻辑 (`SetBool`)，Animator 里藏了一半逻辑 (连线条件)。
+    - **蜘蛛网**: 状态多了以后连线会极其复杂 (Any State 连所有)。
+    - **延迟**: 默认的 Transition 即使设为 0 也有微小开销。
+- **CrossFade (推荐)**:
+  - *原理*: `animator.CrossFade("StateName", transitionDuration)`。
+  - *优势*: 
+    - **完全代码控制**: 不需要连线，不需要参数，直接指名道姓播放哪个状态。
+    - **适合 FSM**: 状态机脚本（如 `Enter()`）直接决定播放什么动画，逻辑高度集中。
+    - **性能略优**: 省去了 Animator 每帧检测 Transition 条件的开销。
+  - *面试点*: 为什么在复杂动作游戏中推荐 CrossFade？(为了逻辑解耦和精确控制)。
+
+## 26. Developer Debug Mode (开发者调试模式)
+- **OnGUI**:
+  - Unity 最古老的 UI 系统，性能一般但非常适合做**Debug 工具**。
+  - `GUI.Label(rect, text, style)`: 快速在屏幕上打印变量。
+- **实战应用**:
+  - 显示当前状态机状态 (`StateMachine.CurrentState`)。
+  - 显示物理变量 (Velocity, Grounded)。
+  - **开关控制**: 使用 `Input.GetKeyDown(KeyCode.BackQuote)` (波浪号键) 切换 `showDebugInfo` 布尔值，避免正式包里一直显示。
+
+## 27. HFSM (Hierarchical Finite State Machine, 分层状态机)
+- **疑问**: "我现在的状态机是分层的吗？"
+- **解答**: **是的！**
+  - **继承即分层**: 我们通过 C# 的 **类继承 (Inheritance)** 实现了分层。
+    - **Root**: `PlayerState` (基类)
+    - **Super State (父状态)**: `PlayerGroundedState` (处理地面共性), `PlayerInAirState` (处理空中共性), `PlayerAbilityState` (处理技能共性)。
+    - **Sub State (子状态)**: `PlayerIdleState`, `PlayerJumpState` 等。
+  - **工作原理**: 
+    - 当你在 `PlayerIdleState` 中调用 `LogicUpdate()` 时，它会先执行 `base.LogicUpdate()` (即 `PlayerGroundedState` 的逻辑)。
+    - 这就是分层状态机的核心：**父状态处理通用逻辑，子状态处理特定逻辑**。
+  - *区别*: 这种写法叫 "Code-based HFSM" (基于代码的分层)，有些插件（如 NodeCanvas）是 "Graph-based HFSM" (基于图的分层)，原理一样，表现形式不同。
