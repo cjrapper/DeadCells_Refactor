@@ -73,8 +73,8 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: 1611730867
+  m_SortingLayer: 3
   m_SortingOrder: 0
   m_Sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
   m_Color: {r: 0.836478, g: 0.14993465, b: 0.14993465, a: 1}
@@ -165,7 +165,7 @@ MonoBehaviour:
   lifeTime: 5
   damage: 10
   knockbackForce: 5
-  hitEffectPrefab: {fileID: 0}
+  hitEffectPrefab: {fileID: 1530149618251850255, guid: 04c87a70d26dc2a45881b2424675ac6f, type: 3}
   targetLayer:
     serializedVersion: 2
     m_Bits: 128

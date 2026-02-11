@@ -17,8 +17,8 @@ public class RangedWeapon : WeaponData
         }
 
         // Determine spawn position (slightly in front of player)
-        // Use attackPoint if available, otherwise player center
-        Transform spawnPoint = holder.attackPoint != null ? holder.attackPoint : holder.transform;
+        // Use AttackOrigin if available, otherwise player center
+        Transform spawnPoint = holder.AttackOrigin != null ? holder.AttackOrigin : holder.transform;
 
         // Calculate rotation based on player facing direction
         // If player scale.x is 1, rotation is 0. If -1, rotation is 180.

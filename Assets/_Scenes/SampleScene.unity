@@ -10282,8 +10282,8 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: 63161877
+  m_SortingLayer: 2
   m_SortingOrder: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
   m_Color: {r: 0.1509434, g: 0.107748896, b: 0.107748896, a: 1}
@@ -11040,25 +11040,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17c376b8530c6f44e8489ea51beff7df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  GroundCheckPos: {fileID: 990693482}
+  WallCheckPos: {fileID: 279894919}
+  AttackOrigin: {fileID: 279894919}
+  WeaponPivotTransform: {fileID: 1565603562}
   maxHealth: 100
   moveSpeed: 5
   jumpForce: 12
-  amountOfJumps: 1
-  jumpGravityScale: 1
-  fallGravityScale: 2.5
-  jumpBufferTime: 0.2
-  coyoteTime: 0.15
-  feetPos: {fileID: 990693482}
-  checkRadius: 0.3
-  ground:
+  MaxJumpCount: 1
+  RisingGravityScale: 1
+  FallingGravityScale: 2.5
+  JumpBufferDuration: 0.3
+  CoyoteDuration: 0.15
+  CheckRadius: 0.3
+  GroundLayer:
     serializedVersion: 2
     m_Bits: 64
-  attackPoint: {fileID: 279894919}
-  weaponInventory:
+  WallLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  OneWayPlatformLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  WeaponInventory:
   - {fileID: 11400000, guid: 8edc2531920a78d43a37b4d6877dbec9, type: 2}
   - {fileID: 11400000, guid: 5f06c4990bd233348a3e02ac59115b3a, type: 2}
-  currentWeapon: {fileID: 11400000, guid: 5f06c4990bd233348a3e02ac59115b3a, type: 2}
-  weaponPivot: {fileID: 1565603562}
+  CurrentWeapon: {fileID: 11400000, guid: 8edc2531920a78d43a37b4d6877dbec9, type: 2}
   swingCurve:
     serializedVersion: 2
     m_Curve:
@@ -11097,19 +11104,12 @@ MonoBehaviour:
   dashSpeed: 15
   dashTime: 0.2
   dashCooldown: 1
-  hitEffectPrefab: {fileID: 1530149618251850255, guid: 04c87a70d26dc2a45881b2424675ac6f, type: 3}
-  impulseSource: {fileID: 1784005150}
-  jumpDustPrefab: {fileID: 2062184490798064262, guid: cd1f1b30f2a29794386db87084961268, type: 3}
-  landDustPrefab: {fileID: 3706504530610183195, guid: c77f1b0319359694c8d907781d9f788d, type: 3}
-  oneWayPlatformLayer:
-    serializedVersion: 2
-    m_Bits: 256
-  platformFallForce: -10
+  HitEffectPrefab: {fileID: 1530149618251850255, guid: 04c87a70d26dc2a45881b2424675ac6f, type: 3}
+  ImpulseSource: {fileID: 1784005150}
+  JumpDustPrefab: {fileID: 2062184490798064262, guid: cd1f1b30f2a29794386db87084961268, type: 3}
+  LandDustPrefab: {fileID: 3706504530610183195, guid: c77f1b0319359694c8d907781d9f788d, type: 3}
+  PlatformFallSpeed: -10
   platformFallTime: 0.5
-  frontCheck: {fileID: 279894919}
-  whatIsWall:
-    serializedVersion: 2
-    m_Bits: 64
   wallSlideSpeed: 2
   wallJumpForce: {x: 10, y: 12}
   wallJumpTime: 0.2

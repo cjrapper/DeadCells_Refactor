@@ -10,7 +10,7 @@ public class SwordWeapon : WeaponData
     // Implementation of the abstract Attack method
     public override void Attack(PlayerController holder)
     {
-        Vector3 origin = holder.attackPoint.position;
+        Vector3 origin = holder.AttackOrigin.position;
         
         // Detect enemies in range
         Collider2D[] hitRange = Physics2D.OverlapCircleAll(origin, attackRange, targetLayer);
