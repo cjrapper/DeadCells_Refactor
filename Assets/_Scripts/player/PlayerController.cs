@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
-using System.Reflection;
 
 public class PlayerController : MonoBehaviour, IDamageable
 { 
@@ -50,7 +49,9 @@ public class PlayerController : MonoBehaviour, IDamageable
 
     [Header("Combat System")]
     public Transform attackPoint;
+    public List<WeaponData> weaponInventory; // Inventory list
     public WeaponData currentWeapon;
+    private int currentWeaponIndex = 0;
     public Transform weaponPivot;
     public AnimationCurve swingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
     public float swingDuration = 0.25f;
@@ -152,11 +153,22 @@ public class PlayerController : MonoBehaviour, IDamageable
         {
             weaponPivot = attackPoint;
         }
+
+        // Initialize weapon from inventory if available
+        if (weaponInventory != null && weaponInventory.Count > 0)
+        {
+            currentWeapon = weaponInventory[0];
+            currentWeaponIndex = 0;
+        }
     }
 
     void Start()
     {
-        StateMachine.Initialize(IdleState);
+        // 强制设置图层顺序，防止被背景遮挡
+        if (SR != null) SR.sortingOrder = 10;
+
+        // StateMachine.Initialize(IdleState);
+        InitializeInnerFSM();
     }
 
     void Update()
@@ -184,8 +196,9 @@ public class PlayerController : MonoBehaviour, IDamageable
         JumpBufferCounter = jumpBufferTimer;
 
         // 4. State Machine Updates
-        StateMachine.currentState.HandleInput();
-        StateMachine.currentState.LogicUpdate();
+        // StateMachine.currentState.HandleInput();
+        // StateMachine.currentState.LogicUpdate();
+        RunInnerFSM();
 
         // 5. Debug Info Update
         if (StateMachine.currentState != null)
@@ -196,12 +209,33 @@ public class PlayerController : MonoBehaviour, IDamageable
         {
             showDebugInfo = !showDebugInfo;
         }
+
+        // 6. Weapon Switching
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            SwitchWeapon();
+        }
+    }
+
+    public void SwitchWeapon()
+    {
+        if (weaponInventory == null || weaponInventory.Count == 0) return;
+
+        currentWeaponIndex++;
+        if (currentWeaponIndex >= weaponInventory.Count)
+        {
+            currentWeaponIndex = 0;
+        }
+
+        currentWeapon = weaponInventory[currentWeaponIndex];
+        Debug.Log($"Switched to weapon: {currentWeapon.name}");
     }
 
     void FixedUpdate()
     {
         if (IsHurting) return;
-        StateMachine.currentState.PhysicsUpdate();
+        // StateMachine.currentState.PhysicsUpdate();
+        RunInnerPhysics();
     }
 
     public void SetJumpBuffer(float value) => jumpBufferTimer = value;
@@ -400,4 +434,346 @@ public class PlayerController : MonoBehaviour, IDamageable
         float height = 140f;
         GUI.Box(new Rect(10, 10, 200, height), info, style);
     }
+
+    // ============================================================================
+    //  内部类状态机 (Nested Class FSM) - 完整实现
+    //  优势：高内聚、高封装（可直接访问 PlayerController 私有成员）、文件数减少
+    // ============================================================================
+
+    // 1. 定义状态基类
+    public abstract class BaseState
+    {
+        protected PlayerController core; // 引用外部类 (Core)
+        protected float startTime;
+
+        public BaseState(PlayerController _core) => core = _core;
+
+        public virtual void Enter() 
+        { 
+            startTime = Time.time;
+            if (core.showDebugInfo) Debug.Log($"Enter State: {this.GetType().Name}");
+        }
+        public virtual void Exit() { }
+        public virtual void LogicUpdate() { }
+        public virtual void PhysicsUpdate() { }
+    }
+
+    // 2. 具体状态: Idle
+    public class InnerIdleState : BaseState
+    {
+        public InnerIdleState(PlayerController core) : base(core) { }
+
+        public override void Enter()
+        {
+            base.Enter();
+            core.SetVelocityX(0); 
+            if(core.Anim != null) core.Anim.CrossFade("Idle", 0.1f);
+        }
+
+        public override void LogicUpdate()
+        {
+            if (core.MoveInput != 0) core.SwitchInnerState(new InnerMoveState(core));
+            
+            if (Input.GetButtonDown("Jump") && core.CheckGrounded())
+                core.SwitchInnerState(new InnerJumpState(core));
+                
+            if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1")) // 攻击键
+                core.SwitchInnerState(new InnerAttackState(core));
+
+            if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
+                core.SwitchInnerState(new InnerDashState(core));
+                
+            if (!core.CheckGrounded())
+                core.SwitchInnerState(new InnerFallState(core));
+        }
+    }
+
+    // 3. 具体状态: Move
+    public class InnerMoveState : BaseState
+    {
+        public InnerMoveState(PlayerController core) : base(core) { }
+
+        public override void Enter()
+        {
+            base.Enter();
+            if(core.Anim != null) core.Anim.CrossFade("Move", 0.1f);
+        }
+
+        public override void LogicUpdate()
+        {
+            core.CheckFlip();
+            core.SetVelocityX(core.moveSpeed * core.MoveInput);
+
+            if (core.MoveInput == 0) core.SwitchInnerState(new InnerIdleState(core));
+            
+            if (Input.GetButtonDown("Jump") && core.CheckGrounded())
+                core.SwitchInnerState(new InnerJumpState(core));
+                
+            if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1"))
+                core.SwitchInnerState(new InnerAttackState(core));
+
+            if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
+                core.SwitchInnerState(new InnerDashState(core));
+
+            if (!core.CheckGrounded())
+                core.SwitchInnerState(new InnerFallState(core));
+        }
+    }
+
+    // 4. 具体状态: Jump
+    public class InnerJumpState : BaseState
+    {
+        public InnerJumpState(PlayerController core) : base(core) { }
+        public override void Enter()
+        {
+            base.Enter();
+            core.SetVelocityY(core.jumpForce);
+            if(core.Anim != null) core.Anim.CrossFade("Jump", 0.1f);
+            core.SpawnDust(core.jumpDustPrefab);
+        }
+        public override void LogicUpdate()
+        {
+            core.CheckFlip();
+            core.SetVelocityX(core.moveSpeed * core.MoveInput);
+
+            if (core.RB.velocity.y < 0) core.SwitchInnerState(new InnerFallState(core));
+            
+            // 检测滑墙 (Wall Slide)
+            // 条件：碰到墙壁 && 正在向墙壁方向输入 && 不在地面
+            if (core.CheckTouchingWall() && core.MoveInput == core.transform.localScale.x)
+            {
+                 core.SwitchInnerState(new InnerWallSlideState(core));
+            }
+
+            // 支持空中冲刺或攻击
+            if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
+                core.SwitchInnerState(new InnerDashState(core));
+                
+            if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1"))
+                core.SwitchInnerState(new InnerAttackState(core));
+        }
+    }
+
+    // 5. 具体状态: Fall
+    public class InnerFallState : BaseState
+    {
+        public InnerFallState(PlayerController core) : base(core) { }
+        public override void Enter()
+        {
+            base.Enter();
+            if(core.Anim != null) core.Anim.CrossFade("Fall", 0.1f);
+        }
+        public override void LogicUpdate()
+        {
+            core.CheckFlip();
+            core.SetVelocityX(core.moveSpeed * core.MoveInput);
+
+            if (core.CheckGrounded())
+            {
+                core.SpawnDust(core.landDustPrefab);
+                core.SwitchInnerState(new InnerIdleState(core));
+            }
+            
+            // 检测滑墙 (Wall Slide)
+            if (core.CheckTouchingWall() && core.MoveInput == core.transform.localScale.x)
+            {
+                 core.SwitchInnerState(new InnerWallSlideState(core));
+            }
+
+            // 土狼时间跳跃
+            if (core.CoyoteTimeCounter > 0 && Input.GetButtonDown("Jump"))
+                 core.SwitchInnerState(new InnerJumpState(core));
+
+            if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
+                core.SwitchInnerState(new InnerDashState(core));
+
+            if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1"))
+                core.SwitchInnerState(new InnerAttackState(core));
+        }
+    }
+
+    // 6. 具体状态: Dash
+    public class InnerDashState : BaseState
+    {
+        public InnerDashState(PlayerController core) : base(core) { }
+        public override void Enter()
+        {
+            base.Enter();
+            if(core.Anim != null) core.Anim.CrossFade("Dash", 0f); 
+            core.dashCooldownTimer = core.dashCooldown; 
+            int dir = core.transform.localScale.x > 0 ? 1 : -1;
+            core.SetVelocity(dir * core.dashSpeed, 0);
+            core.RB.gravityScale = 0; 
+        }
+        public override void Exit()
+        {
+            core.RB.gravityScale = core.fallGravityScale; 
+            core.SetVelocityX(0);
+        }
+        public override void LogicUpdate()
+        {
+            if (Time.time >= startTime + core.dashTime)
+                core.SwitchInnerState(new InnerIdleState(core));
+        }
+    }
+
+    // 7. 具体状态: Attack
+    public class InnerAttackState : BaseState
+    {
+        public InnerAttackState(PlayerController core) : base(core) { }
+        public override void Enter()
+        {
+            base.Enter();
+            // 地面攻击停止移动，空中攻击保留惯性(或者减速)
+            if (core.CheckGrounded())
+            {
+                 core.SetVelocityX(0);
+            }
+            
+            if (core.currentWeapon != null)
+            {
+                core.currentWeapon.Attack(core);
+                if (core.currentWeapon.useMeleeSwing)
+                     core.StartCoroutine(core.PlaySwingCurve());
+            }
+        }
+        public override void LogicUpdate()
+        {
+            // 使用 swingDuration 作为攻击状态的最短持续时间
+            // 额外增加一点缓冲 (0.1f) 确保动作流畅
+            if (Time.time >= startTime + core.swingDuration + 0.1f) 
+            {
+                if (core.CheckGrounded())
+                    core.SwitchInnerState(new InnerIdleState(core));
+                else
+                    core.SwitchInnerState(new InnerFallState(core));
+            }
+        }
+    }
+
+    // 8. 具体状态: WallSlide
+    public class InnerWallSlideState : BaseState
+    {
+        public InnerWallSlideState(PlayerController core) : base(core) { }
+        public override void Enter()
+        {
+            base.Enter();
+            // 如果没有 WallSlide 动画，可以用 Fall 代替
+            if(core.Anim != null) core.Anim.CrossFade("Fall", 0.1f); 
+        }
+        public override void LogicUpdate()
+        {
+            // 蹬墙跳
+            if (Input.GetButtonDown("Jump"))
+            {
+                core.SwitchInnerState(new InnerWallJumpState(core));
+                return;
+            }
+
+            // 离开墙壁 (且 MoveInput 试图离开墙壁) 或 着地
+            bool isMovingAway = core.MoveInput != 0 && core.MoveInput != core.transform.localScale.x;
+            
+            if (!core.CheckTouchingWall() || core.CheckGrounded() || isMovingAway)
+            {
+                if(core.CheckGrounded()) core.SwitchInnerState(new InnerIdleState(core));
+                else core.SwitchInnerState(new InnerFallState(core));
+                return;
+            }
+
+            // 施加滑墙阻力/速度
+            core.SetVelocity(core.RB.velocity.x, -core.wallSlideSpeed);
+        }
+    }
+
+    // 9. 具体状态: WallJump
+    public class InnerWallJumpState : BaseState
+    {
+        public InnerWallJumpState(PlayerController core) : base(core) { }
+        public override void Enter()
+        {
+            base.Enter();
+            if(core.Anim != null) core.Anim.CrossFade("Jump", 0.1f);
+            
+            // 计算蹬墙方向：反向于当前朝向
+            float jumpDir = -core.transform.localScale.x; 
+            
+            Vector2 force = new Vector2(core.wallJumpForce.x * jumpDir, core.wallJumpForce.y);
+            core.RB.velocity = Vector2.zero; 
+            core.RB.AddForce(force, ForceMode2D.Impulse);
+            
+            // 翻转角色朝向
+            core.Flip();
+        }
+        public override void LogicUpdate()
+        {
+            // 蹬墙跳有短暂的不可控时间 (wallJumpTime)
+            if (Time.time >= startTime + core.wallJumpTime)
+            {
+                core.SwitchInnerState(new InnerFallState(core));
+            }
+        }
+    }
+
+    // ============================================================================
+    //  辅助方法
+    // ============================================================================
+    private BaseState currentInnerState;
+    public float dashCooldownTimer; 
+
+    public void InitializeInnerFSM()
+    {
+        SwitchInnerState(new InnerIdleState(this));
+    }
+
+    public void SwitchInnerState(BaseState newState)
+    {
+        currentInnerState?.Exit();
+        currentInnerState = newState;
+        currentInnerState.Enter();
+        currentStateName = newState.GetType().Name; 
+    }
+
+    public void RunInnerFSM()
+    {
+        if(dashCooldownTimer > 0) dashCooldownTimer -= Time.deltaTime;
+        currentInnerState?.LogicUpdate();
+    }
+    
+    public void RunInnerPhysics()
+    {
+        currentInnerState?.PhysicsUpdate();
+    }
+
+    private void SetVelocityX(float x) 
+    {
+        workspace.Set(x, RB.velocity.y);
+        RB.velocity = workspace;
+    }
+
+    private void SetVelocityY(float y)
+    {
+        workspace.Set(RB.velocity.x, y);
+        RB.velocity = workspace;
+    }
+
+    private void SetVelocity(float x, float y)
+    {
+        workspace.Set(x, y);
+        RB.velocity = workspace;
+    }
+    
+    private void CheckFlip()
+    {
+        if (MoveInput > 0 && transform.localScale.x < 0) Flip();
+        else if (MoveInput < 0 && transform.localScale.x > 0) Flip();
+    }
+
+    private void Flip()
+    {
+        Vector3 scaler = transform.localScale;
+        scaler.x *= -1;
+        transform.localScale = scaler;
+    }
+
+    private Vector2 workspace; 
 }

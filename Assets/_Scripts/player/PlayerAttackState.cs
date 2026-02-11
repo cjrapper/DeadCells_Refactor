@@ -15,8 +15,12 @@ public class PlayerAttackState : PlayerAbilityState
         {
             player.UpdateNextAttackTime();
             player.currentWeapon.Attack(player);
-            // Trigger swing animation logic (assuming PlayerController handles the visual swing)
-            player.SendMessage("StartSwing", SendMessageOptions.DontRequireReceiver);
+            
+            // Trigger swing animation logic only if the weapon uses it
+            if (player.currentWeapon.useMeleeSwing)
+            {
+                player.SendMessage("StartSwing", SendMessageOptions.DontRequireReceiver);
+            }
         }
     }
 
