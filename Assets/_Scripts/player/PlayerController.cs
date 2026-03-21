@@ -169,6 +169,8 @@ public class PlayerController : MonoBehaviour, IDamageable
     {
         if(dustPrefab != null && GroundCheckPos != null)
         {
+            // 生成灰尘特效 (Spawn Dust VFX)
+            // 确保 Prefab 的 Sorting Order 在 Inspector 中已正确设置
             Instantiate(dustPrefab, GroundCheckPos.position, Quaternion.identity);
         }
     }
@@ -202,9 +204,10 @@ public class PlayerController : MonoBehaviour, IDamageable
     public void SetJumpBuffer(float value) => jumpBufferTimer = value;
     public void SetCoyoteTime(float value) => coyoteTimer = value;
 
+    // 处理受击逻辑：扣血、UI更新、击退、特效、震动
     public void TakeDamage(int amount,Vector3 sourcePosition, float knockbackForce)
     {
-        if (IsHurting) return; 
+        if (IsHurting) return; // 避免短时间内连续受击
 
         currentHealth -= amount;
         if(UIManager.instance != null)
@@ -212,28 +215,34 @@ public class PlayerController : MonoBehaviour, IDamageable
             UIManager.instance.UpdateHealthBar(currentHealth,maxHealth);
         }
         
-        // Knockback Logic
+        // 击退逻辑 (Knockback)
         if (RigidBody != null)
         {
             StartCoroutine(KnockbackRoutine(knockbackForce));
             
+            // 计算击退方向（从伤害源推向玩家）
             Vector2 direction = (transform.position - sourcePosition).normalized;
+            // 添加向上的分量，产生抛物线击退效果
             Vector2 force = direction * knockbackForce + Vector2.up * (knockbackForce * 0.5f);
             
-            RigidBody.velocity = Vector2.zero;
+            RigidBody.velocity = Vector2.zero; // 重置当前速度，保证击退力度一致
             RigidBody.AddForce(force, ForceMode2D.Impulse);
         }
 
-        // Visual Feedback
+        // 视觉反馈 (Visual Feedback)
         StartCoroutine(FlashEffect());
 
+        // 屏幕震动
         if(ImpulseSource != null)
         {
             Vector3 shakeVelocity = new Vector3(UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f), 0) * 0.5f;
             ImpulseSource.GenerateImpulse(shakeVelocity);
         }
+
+        // 受击特效
         if(HitEffectPrefab != null)
         {
+            // 生成受击特效 (Spawn Hit VFX)
             Instantiate(HitEffectPrefab,transform.position,Quaternion.identity);
         }
 
@@ -328,6 +337,11 @@ public class PlayerController : MonoBehaviour, IDamageable
         }
     }
 
+    public void StartPlatformDrop()
+    {
+        StartCoroutine(DisableCollision());
+    }
+
     IEnumerator DisableCollision()
     {
         if (currentPlatformCollider == null) yield break;
@@ -383,7 +397,8 @@ public class PlayerController : MonoBehaviour, IDamageable
     }
 
     // ============================================================================
-    //  Inner FSM Classes
+    //  Inner FSM Classes (内部状态机类)
+    //  所有状态逻辑都在此处集中管理，直接访问 PlayerController 的私有成员
     // ============================================================================
 
     public abstract class BaseState
@@ -396,6 +411,7 @@ public class PlayerController : MonoBehaviour, IDamageable
         public virtual void Enter() 
         { 
             startTime = Time.time;
+            // 调试模式下打印状态切换日志
             if (core.showDebugInfo) Debug.Log($"Enter State: {this.GetType().Name}");
         }
         public virtual void Exit() { }
@@ -403,6 +419,9 @@ public class PlayerController : MonoBehaviour, IDamageable
         public virtual void PhysicsUpdate() { }
     }
 
+    /// <summary>
+    /// 站立状态：处理跳跃、移动、攻击、冲刺、下落以及单向平台下落
+    /// </summary>
     public class InnerIdleState : BaseState
     {
         public InnerIdleState(PlayerController core) : base(core) { }
@@ -411,28 +430,43 @@ public class PlayerController : MonoBehaviour, IDamageable
         {
             base.Enter();
             core.SetVelocityX(0); 
-            core.RigidBody.gravityScale = core.FallingGravityScale; // Normal gravity
+            core.RigidBody.gravityScale = core.FallingGravityScale; // 使用下落重力（通常较大，手感更稳）
             if(core.Animator != null) core.Animator.CrossFade("Idle", 0.1f);
         }
 
         public override void LogicUpdate()
         {
+            // 切换到移动状态
             if (core.InputX != 0) core.SwitchInnerState(new InnerMoveState(core));
             
+            // 单向平台下落 (S + Jump)
+            if (Input.GetAxisRaw("Vertical") < 0 && Input.GetButtonDown("Jump"))
+            {
+                core.StartPlatformDrop();
+                return; // 优先处理下落，避免触发普通跳跃
+            }
+
+            // 普通跳跃
             if (Input.GetButtonDown("Jump") && core.CheckGrounded())
                 core.SwitchInnerState(new InnerJumpState(core));
                 
+            // 攻击输入
             if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1")) 
                 core.SwitchInnerState(new InnerAttackState(core));
 
+            // 冲刺输入
             if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
                 core.SwitchInnerState(new InnerDashState(core));
                 
+            // 自然下落（例如走出边缘）
             if (!core.CheckGrounded())
                 core.SwitchInnerState(new InnerFallState(core));
         }
     }
 
+    /// <summary>
+    /// 移动状态：处理水平移动、跳跃、攻击等
+    /// </summary>
     public class InnerMoveState : BaseState
     {
         public InnerMoveState(PlayerController core) : base(core) { }
@@ -446,25 +480,40 @@ public class PlayerController : MonoBehaviour, IDamageable
 
         public override void LogicUpdate()
         {
-            core.CheckFlip();
+            core.CheckFlip(); // 检查翻转
             core.SetVelocityX(core.moveSpeed * core.InputX);
 
+            // 停止移动 -> 切回 Idle
             if (core.InputX == 0) core.SwitchInnerState(new InnerIdleState(core));
             
+            // 单向平台下落 (S + Jump)
+            if (Input.GetAxisRaw("Vertical") < 0 && Input.GetButtonDown("Jump"))
+            {
+                core.StartPlatformDrop();
+                return;
+            }
+
+            // 跳跃
             if (Input.GetButtonDown("Jump") && core.CheckGrounded())
                 core.SwitchInnerState(new InnerJumpState(core));
                 
+            // 攻击
             if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1"))
                 core.SwitchInnerState(new InnerAttackState(core));
 
+            // 冲刺
             if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
                 core.SwitchInnerState(new InnerDashState(core));
 
+            // 下落
             if (!core.CheckGrounded())
                 core.SwitchInnerState(new InnerFallState(core));
         }
     }
 
+    /// <summary>
+    /// 跳跃状态：处理上升过程、空中移动、二段跳（如需）、贴墙判定
+    /// </summary>
     public class InnerJumpState : BaseState
     {
         public InnerJumpState(PlayerController core) : base(core) { }
@@ -472,7 +521,7 @@ public class PlayerController : MonoBehaviour, IDamageable
         {
             base.Enter();
             core.SetVelocityY(core.jumpForce);
-            core.RigidBody.gravityScale = core.RisingGravityScale; // Jump gravity
+            core.RigidBody.gravityScale = core.RisingGravityScale; // 上升重力（较小，手感更轻盈）
             if(core.Animator != null) core.Animator.CrossFade("Jump", 0.1f);
             core.SpawnDust(core.JumpDustPrefab);
         }
@@ -481,28 +530,35 @@ public class PlayerController : MonoBehaviour, IDamageable
             core.CheckFlip();
             core.SetVelocityX(core.moveSpeed * core.InputX);
 
+            // 速度小于0转为下落
             if (core.RigidBody.velocity.y < 0) core.SwitchInnerState(new InnerFallState(core));
             
+            // 贴墙检测 -> 切换滑墙
             if (core.CheckTouchingWall() && core.InputX == core.transform.localScale.x)
             {
                  core.SwitchInnerState(new InnerWallSlideState(core));
             }
 
+            // 空中冲刺
             if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
                 core.SwitchInnerState(new InnerDashState(core));
                 
+            // 空中攻击
             if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1"))
                 core.SwitchInnerState(new InnerAttackState(core));
         }
     }
 
+    /// <summary>
+    /// 下落状态：处理自然下落、落地检测、土狼时间跳跃
+    /// </summary>
     public class InnerFallState : BaseState
     {
         public InnerFallState(PlayerController core) : base(core) { }
         public override void Enter()
         {
             base.Enter();
-            core.RigidBody.gravityScale = core.FallingGravityScale; // Fall gravity
+            core.RigidBody.gravityScale = core.FallingGravityScale; // 下落重力
             if(core.Animator != null) core.Animator.CrossFade("Fall", 0.1f);
         }
         public override void LogicUpdate()
@@ -510,28 +566,36 @@ public class PlayerController : MonoBehaviour, IDamageable
             core.CheckFlip();
             core.SetVelocityX(core.moveSpeed * core.InputX);
 
+            // 落地检测
             if (core.CheckGrounded())
             {
                 core.SpawnDust(core.LandDustPrefab);
                 core.SwitchInnerState(new InnerIdleState(core));
             }
             
+            // 贴墙检测
             if (core.CheckTouchingWall() && core.InputX == core.transform.localScale.x)
             {
                  core.SwitchInnerState(new InnerWallSlideState(core));
             }
 
+            // 土狼时间 (Coyote Time)：允许离开平台一小段时间内仍可跳跃
             if (core.CoyoteTimeCounter > 0 && Input.GetButtonDown("Jump"))
                  core.SwitchInnerState(new InnerJumpState(core));
 
+            // 空中冲刺
             if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
                 core.SwitchInnerState(new InnerDashState(core));
 
+            // 空中攻击
             if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1"))
                 core.SwitchInnerState(new InnerAttackState(core));
         }
     }
 
+    /// <summary>
+    /// 冲刺状态：忽略重力、快速移动、无敌帧（可选）
+    /// </summary>
     public class InnerDashState : BaseState
     {
         public InnerDashState(PlayerController core) : base(core) { }
@@ -541,13 +605,13 @@ public class PlayerController : MonoBehaviour, IDamageable
             if(core.Animator != null) core.Animator.CrossFade("Dash", 0f); 
             core.dashCooldownTimer = core.dashCooldown; 
             int dir = core.transform.localScale.x > 0 ? 1 : -1;
-            core.SetVelocity(dir * core.dashSpeed, 0);
-            core.RigidBody.gravityScale = 0; 
+            core.SetVelocity(dir * core.dashSpeed, 0); // 冲刺时Y轴速度清零
+            core.RigidBody.gravityScale = 0; // 关闭重力
         }
         public override void Exit()
         {
-            core.RigidBody.gravityScale = core.FallingGravityScale; 
-            core.SetVelocityX(0);
+            core.RigidBody.gravityScale = core.FallingGravityScale; // 恢复重力
+            core.SetVelocityX(0); // 冲刺结束稍微停顿一下（可选）
         }
         public override void LogicUpdate()
         {
@@ -556,12 +620,16 @@ public class PlayerController : MonoBehaviour, IDamageable
         }
     }
 
+    /// <summary>
+    /// 攻击状态：调用 WeaponData 执行具体逻辑，处理硬直时间
+    /// </summary>
     public class InnerAttackState : BaseState
     {
         public InnerAttackState(PlayerController core) : base(core) { }
         public override void Enter()
         {
             base.Enter();
+            // 地面攻击时静止，空中攻击保留惯性
             if (core.CheckGrounded())
             {
                  core.SetVelocityX(0);
@@ -570,12 +638,14 @@ public class PlayerController : MonoBehaviour, IDamageable
             if (core.CurrentWeapon != null)
             {
                 core.CurrentWeapon.Attack(core);
+                // 如果是近战，播放挥剑曲线动画
                 if (core.CurrentWeapon.useMeleeSwing)
                      core.StartCoroutine(core.PlaySwingCurve());
             }
         }
         public override void LogicUpdate()
         {
+            // 攻击动作结束判定
             if (Time.time >= startTime + core.swingDuration + 0.1f) 
             {
                 if (core.CheckGrounded())
@@ -586,6 +656,9 @@ public class PlayerController : MonoBehaviour, IDamageable
         }
     }
 
+    /// <summary>
+    /// 滑墙状态：处理贴墙下滑、蹬墙跳
+    /// </summary>
     public class InnerWallSlideState : BaseState
     {
         public InnerWallSlideState(PlayerController core) : base(core) { }
@@ -596,12 +669,14 @@ public class PlayerController : MonoBehaviour, IDamageable
         }
         public override void LogicUpdate()
         {
+            // 蹬墙跳
             if (Input.GetButtonDown("Jump"))
             {
                 core.SwitchInnerState(new InnerWallJumpState(core));
                 return;
             }
 
+            // 脱离墙壁判定：输入反向或不再贴墙
             bool isMovingAway = core.InputX != 0 && core.InputX != core.transform.localScale.x;
             
             if (!core.CheckTouchingWall() || core.CheckGrounded() || isMovingAway)
@@ -611,10 +686,14 @@ public class PlayerController : MonoBehaviour, IDamageable
                 return;
             }
 
+            // 施加滑墙摩擦力（匀速下滑）
             core.SetVelocity(core.RigidBody.velocity.x, -core.wallSlideSpeed);
         }
     }
 
+    /// <summary>
+    /// 蹬墙跳状态：施加反向力，短暂锁定输入
+    /// </summary>
     public class InnerWallJumpState : BaseState
     {
         public InnerWallJumpState(PlayerController core) : base(core) { }
@@ -623,16 +702,17 @@ public class PlayerController : MonoBehaviour, IDamageable
             base.Enter();
             if(core.Animator != null) core.Animator.CrossFade("Jump", 0.1f);
             
-            float jumpDir = -core.transform.localScale.x; 
+            float jumpDir = -core.transform.localScale.x; // 反向跳跃
             
             Vector2 force = new Vector2(core.wallJumpForce.x * jumpDir, core.wallJumpForce.y);
             core.RigidBody.velocity = Vector2.zero; 
             core.RigidBody.AddForce(force, ForceMode2D.Impulse);
             
-            core.Flip();
+            core.Flip(); // 立即转向
         }
         public override void LogicUpdate()
         {
+            // 锁定时间结束，转为下落
             if (Time.time >= startTime + core.wallJumpTime)
             {
                 core.SwitchInnerState(new InnerFallState(core));
@@ -641,7 +721,7 @@ public class PlayerController : MonoBehaviour, IDamageable
     }
 
     // ============================================================================
-    //  Helper Methods
+    //  Helper Methods (通用辅助方法)
     // ============================================================================
     private BaseState currentInnerState;
     public float dashCooldownTimer; 

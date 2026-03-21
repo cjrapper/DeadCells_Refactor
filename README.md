@@ -1,3 +1,11 @@
+# Angry Birds Refactor (Project Name)
+
+## 游戏演示 / Gameplay
+![游戏演示](./docs/demo.gif)
+
+## 简介 / Introduction
+
+这里是你的项目简介...
 ### 2026.01.26 开发日志：敌人程序化动画
 **功能名称：** Q版史莱姆弹性动画 (Procedural Squash & Stretch)
 **核心目的：** 解决白模美术表现力不足的问题，通过代码实现物理质感的动态反馈，提升游戏“生命力”。

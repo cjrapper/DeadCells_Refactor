@@ -89,19 +89,22 @@ public abstract class Enemy : MonoBehaviour, IDamageable
         nextAttackTime = Time.time + attackCooldown;
     }
 
+    // 敌人受击逻辑
     public virtual void TakeDamage(int amount, Vector3 sourcePosition, float knockbackForce)
     {
         if (currentHealth <= 0) return;
         currentHealth -= amount;
 
-        // 受击视觉反馈
+        // 受击视觉反馈 (闪红)
         StartCoroutine(FlashRed());
 
+        // 切换到受击状态或死亡
         if (currentHealth > 0)
-            StateMachine.ChangeState(hurtState);
+            StateMachine.ChangeState(hurtState); // 打断当前动作进入硬直
         else
             Die();
 
+        // 施加物理击退
         if (rb != null)
         { 
             Vector2 direction = (transform.position - sourcePosition).normalized;
@@ -124,11 +127,13 @@ public abstract class Enemy : MonoBehaviour, IDamageable
 
     private float nextAttackTime;
 
+    // 获取敌人背部中心点 (可用于背刺判定或特效生成)
     public Vector3 GetBackCenter()
     {
         if (bodyCollider != null)
         {
             Bounds bounds = bodyCollider.bounds;
+            // 根据朝向计算背部位置
             float facing = transform.localScale.x >= 0f ? 1f : -1f;
             return new Vector3(bounds.center.x - facing * bounds.extents.x, bounds.center.y, bounds.center.z);
         }
