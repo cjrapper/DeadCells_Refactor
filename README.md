@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-# Angry Birds Refactor (Project Name)
-
-## 游戏演示 / Gameplay
-![游戏演示](./docs/demo.gif)
-
-## 简介 / Introduction
-
-这里是你的项目简介...
-=======
 # 🗡️ Project Dash (2D 动作平台跳跃游戏)
 
 > 本项目是由个人独立开发的 Unity 2D 动作平台跳跃 Demo，主要用于底层逻辑架构与游戏手感调优的实践。
@@ -45,7 +35,7 @@
 *   基于多摄像机实现动态视差背景 (Parallax Scrolling) 效果。
 
 *   -----
->>>>>>> 8928ef1b224621b652d034e998b7e667f81c4279
+
 ### 2026.01.26 开发日志：敌人程序化动画
 **功能名称：** Q版史莱姆弹性动画 (Procedural Squash & Stretch)
 **核心目的：** 解决白模美术表现力不足的问题，通过代码实现物理质感的动态反馈，提升游戏“生命力”。
