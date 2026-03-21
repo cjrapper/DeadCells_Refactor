@@ -3,8 +3,9 @@
 > 本项目是由个人独立开发的 Unity 2D 动作平台跳跃 Demo，主要用于底层逻辑架构与游戏手感调优的实践。
 
 ## 🎮 游戏实机演示 (Game Demo)
-*(教练注：这里一定要放一张你冲刺、贴墙跳的 GIF 动图！你可以用 ScreenToGif 录制一段 5 秒的动图传上来。这是绝杀！)*
-![Game Demo](这里放你的GIF图片链接.gif)
+![demo-ezgif com-optimize](https://github.com/user-attachments/assets/113adab2-8321-4740-b5d1-5cc8124bfc62)
+
+
 
 ## 🛠️ 技术栈 (Tech Stack)
 *   **游戏引擎：** Unity 2022.x (2D URP)
