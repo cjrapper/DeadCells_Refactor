@@ -10,13 +10,14 @@
 ## 🛠️ 技术栈 (Tech Stack)
 *   **游戏引擎：** Unity 2022.x (2D URP)
 *   **编程语言：** C#
-*   **物理与表现：** Rigidbody2D, TrailRenderer, UGUI
+*   **架构模式：** FSM 有限状态机、行为树 (Behavior Tree)、事件总线 (Event Bus)、对象池
+*   **物理与表现：** Rigidbody2D, TrailRenderer, UGUI, Cinemachine, TextMeshPro
 
 ## ✨ 核心特性与架构 (Core Features & Architecture)
 
 ### 1. 有限状态机 (FSM) 角色控制
 摒弃了臃肿的 `if-else` 面条代码，采用**接口+类**的形式实现了独立的内部状态机。
-*   已实现状态：`Idle`, `Move`, `Jump`, `Fall`, `Dash`, `WallSlide`, `WallJump`。
+*   已实现状态：`Idle`, `Move`, `Jump`, `Fall`, `Dash`, `Attack`, `WallSlide`, `WallJump`。
 *   优势：严格遵循开闭原则与单一职责，状态间逻辑彻底解耦，极大地提升了新技能扩展的安全性与可读性。
 
 ### 2. 硬核平台跳跃手感调优
@@ -25,41 +26,51 @@
 *   **跳跃预输入 (Jump Buffering)：** 落地前提前按下跳跃键，落地后会自动立刻起跳。
 *   **动态重力缩放：** 上升时重力较小（轻盈），下落时重力倍增（扎实）。
 
-### 3. 对象池 (Object Pool) 性能优化
-针对高频触发的**冲刺残影**与**落地扬尘**粒子特效，自主实现了 `Queue` 队列对象池模块。
+### 3. 战斗系统
+*   **近战武器 (SwordWeapon)：** `OverlapCircleNonAlloc` 圆形范围检测，支持伤害、击退。
+*   **远程武器 (RangedWeapon)：** 从对象池取出弹丸，配置速度、伤害、射程后发射。
+*   **HitStop 顿帧：** 命中时短暂冻结 `Time.timeScale`，增强打击反馈感。
+*   **ScriptableObject 武器数据：** 武器参数（伤害、冷却、射程、击退力）统一存储在 `WeaponData` 中，不硬编码。
+*   **IDamageable 接口：** 统一伤害处理，角色和敌人都实现同一接口，战斗逻辑解耦。
+
+### 4. 敌人 AI 系统
+*   **抽象基类 Enemy：** 可扩展的敌人框架，支持多种敌人类型。
+*   **敌人状态机：** Patrol（巡逻）→ Chase（追击）→ Telegraph（预警）→ Attack（攻击）→ Hurt（受击），五个独立状态类。
+*   **Q版史莱姆弹性动画：** 正弦驱动的程序化 Squash & Stretch，体积守恒 + 平滑过渡。
+
+### 5. 行为树 (Behavior Tree)
+独立实现了一套轻量级行为树框架，用于更灵活的 AI 行为编排：
+*   **组合节点：** `SequenceNode`（AND 逻辑）、`SelectorNode`（OR 逻辑）。
+*   **叶子节点：** `ActionNode`（执行具体行为）、`ConditionNode`（条件判断）。
+*   **Blackboard 黑板：** 所有节点共享的键值对数据中心，实现数据与逻辑解耦。
+*   **示例敌人 (DummyEnemy)：** 用行为树驱动 —— `Selector(Sequence(玩家在范围内? → 追击), 待机)`。
+
+### 6. 事件中心 (EventCenter)
+*   单例事件总线，`Dictionary<string, Action>` 实现模块间通信。
+*   支持无参事件和 `int,int` 参数事件，UI、血量、死亡等模块通过事件解耦，不直接引用。
+
+### 7. 对象池 (Object Pool) 性能优化
+针对高频触发的**冲刺残影、落地扬尘、弹丸**等，自主实现了 `Queue` 队列对象池模块。
 *   将高频的 `Instantiate/Destroy` 转化为 `SetActive(true/false)` 的循环复用。
 *   实现了资源的 O(1) 复杂度存取，从源头上切断了堆内存碎片的产生，避免了 GC (垃圾回收) 导致的主线程掉帧卡顿。
 
-### 4. 渲染与物理表现
+### 8. 渲染与物理表现
 *   规范化 `Sorting Layer` 解决 2D 渲染穿模问题。
 *   基于多摄像机实现动态视差背景 (Parallax Scrolling) 效果。
+*   **Cinemachine 屏幕震动：** 受击时触发 Impulse 震屏，强化打击反馈。
+*   **URP 2D Renderer：** 使用 URP 渲染管线，支持 2D 光照系统。
 
 *   -----
 
 ### 2026.01.26 开发日志：敌人程序化动画
-**功能名称：** Q版史莱姆弹性动画 (Procedural Squash & Stretch)
-**核心目的：** 解决白模美术表现力不足的问题，通过代码实现物理质感的动态反馈，提升游戏“生命力”。
-####  技术实现要点：
-1.  **正弦驱动 (Sine Wave)**
-    *   **原理：** 利用 `Mathf.Sin(Time.time * frequency)` 生成一个在 -1 到 1 之间连续波动的信号。
-    *   **应用：** 用这个信号作为形变的“驱动力”，控制缩放的幅度。
-2.  **体积守恒 (Volume Preservation)**
-    *   **物理直觉：** 当物体被拉长（Y轴变大）时，必须变细（X轴变小），反之亦然。
-    *   **公式逻辑：** `Scale.y = 1 + factor`，`Scale.x = 1 - factor`。
-3.  **平滑过渡 (Smooth Transition)**
-    *   **问题：** 当敌人停止移动时，Sin 波形可能正处于形变状态，直接归零会造成画面跳变。
-    *   **解决：** 使用 `Vector3.Lerp` 进行插值。
-    *   **代码应用：**
-        ```csharp
-        // 每一帧让当前 Scale 向目标 Scale (1,1,1) 靠近 10%
-        // Time.deltaTime * speed 决定了归位的快慢
-        transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * 5f);
-        ```
-#### 📺 效果展示：
-*(此处插入你的视频/GIF)*
 
+Q版史莱姆弹性动画通过正弦驱动 + 体积守恒 + 平滑过渡实现物理质感的动态反馈。
+详见 `SlimeEnemy.cs` 和 `DummyEnemy.cs` 中的 `UpdateVisual()` 实现。
 
+### 2026.05.28 开发日志：行为树系统
 
-
-Lerp 在 Update 里用： 产生减速缓冲效果（适合相机、UI）。
-MoveTowards 在 Update 里用： 产生匀速效果（适合子弹、电梯）
+新增 `Assets/_Scripts/Node/` 目录，实现了一套轻量级行为树框架：
+*   **核心节点：** `BehaviourNode`（抽象基类）、`ActionNode`（动作）、`ConditionNode`（条件）
+*   **组合节点：** `SequenceNode`（顺序执行）、`SelectorNode`（选择执行）
+*   **Blackboard：** 共享数据黑板，支持泛型读写
+*   **DummyEnemy：** 用行为树构建了一个完整敌人 AI 示例
