@@ -7,28 +7,29 @@ public class SwordWeapon : WeaponData
     [Header("Attack Settings")]
     public LayerMask targetLayer;
 
+    [System.NonSerialized] private Collider2D[] hitBuffer = new Collider2D[10];
+
     // Implementation of the abstract Attack method
     public override void Attack(PlayerController holder)
     {
         Vector3 origin = holder.AttackOrigin.position;
-        
-        // Detect enemies in range
-        Collider2D[] hitRange = Physics2D.OverlapCircleAll(origin, attackRange, targetLayer);
-        
+
+        // Non-allocating overlap check
+        int hitCount = Physics2D.OverlapCircleNonAlloc(origin, attackRange, hitBuffer, targetLayer);
+
         bool hasHit = false;
 
-        // Apply damage to all valid targets
-        foreach (var enemy in hitRange)
+        for (int i = 0; i < hitCount; i++)
         {
-            IDamageable damageable = enemy.GetComponent<IDamageable>();
-            if(damageable != null)
+            IDamageable damageable = hitBuffer[i].GetComponent<IDamageable>();
+            if (damageable != null)
             {
                 // Pass damage, source position (for knockback direction), and knockback force
                 damageable.TakeDamage(damage, holder.transform.position, knockbackForce);
                 hasHit = true;
             }
         }
-        
+
         // Trigger Hit Stop if we hit something (Combat Feel)
         if (hasHit)
         {

@@ -37,7 +37,7 @@ public class ABManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 初始化：加载 Manifest 包。必须在加载任何资源前调用。
+    /// 初始化（同步）：加载 Manifest 包。简单可靠，但会造成一帧卡顿。
     /// </summary>
     public void Init()
     {
@@ -53,6 +53,40 @@ public class ABManager : MonoBehaviour
             Debug.LogError("[ABManager] 读取 AssetBundleManifest 失败！");
         else
             Debug.Log("[ABManager] 初始化完成，Manifest 加载成功");
+    }
+
+    /// <summary>
+    /// 初始化（异步）：不卡顿，适合正式游戏。回调在主线程执行。
+    /// </summary>
+    public void InitAsync(System.Action onComplete = null)
+    {
+        StartCoroutine(InitAsyncCoroutine(onComplete));
+    }
+
+    private System.Collections.IEnumerator InitAsyncCoroutine(System.Action onComplete)
+    {
+        string manifestPath = Path.Combine(Application.streamingAssetsPath, "StreamingAssets");
+        var req = AssetBundle.LoadFromFileAsync(manifestPath);
+        yield return req;
+
+        manifestBundle = req.assetBundle;
+        if (manifestBundle == null)
+        {
+            Debug.LogError($"[ABManager] Manifest 包加载失败: {manifestPath}");
+            onComplete?.Invoke();
+            yield break;
+        }
+
+        var assetReq = manifestBundle.LoadAssetAsync<AssetBundleManifest>("AssetBundleManifest");
+        yield return assetReq;
+        manifest = assetReq.asset as AssetBundleManifest;
+
+        if (manifest == null)
+            Debug.LogError("[ABManager] 读取 AssetBundleManifest 失败！");
+        else
+            Debug.Log("[ABManager] 异步初始化完成，Manifest 加载成功");
+
+        onComplete?.Invoke();
     }
 
     /// <summary>
@@ -77,8 +111,11 @@ public class ABManager : MonoBehaviour
 
         if (!loadedBundles.ContainsKey(bundleName))
             LoadBundleInternal(bundleName);
-        loadedBundles[bundleName].RefCount++;
 
+        if (!loadedBundles.ContainsKey(bundleName)) // 加载失败，未加入字典
+            return null;
+
+        loadedBundles[bundleName].RefCount++;
         return loadedBundles[bundleName].Bundle;
     }
 
@@ -108,6 +145,12 @@ public class ABManager : MonoBehaviour
                 string depPath = Path.Combine(Application.streamingAssetsPath, dep);
                 var req = AssetBundle.LoadFromFileAsync(depPath);
                 yield return req;
+                if (req.assetBundle == null)
+                {
+                    Debug.LogError($"[ABManager] 依赖包加载失败: {depPath}");
+                    onComplete?.Invoke(null);
+                    yield break;
+                }
                 loadedBundles[dep] = new BundleRef { Bundle = req.assetBundle, RefCount = 0 };
             }
             loadedBundles[dep].RefCount++;
@@ -119,6 +162,12 @@ public class ABManager : MonoBehaviour
             string path = Path.Combine(Application.streamingAssetsPath, bundleName);
             var req = AssetBundle.LoadFromFileAsync(path);
             yield return req;
+            if (req.assetBundle == null)
+            {
+                Debug.LogError($"[ABManager] 目标包加载失败: {path}");
+                onComplete?.Invoke(null);
+                yield break;
+            }
             loadedBundles[bundleName] = new BundleRef { Bundle = req.assetBundle, RefCount = 0 };
         }
         loadedBundles[bundleName].RefCount++;
@@ -133,9 +182,12 @@ public class ABManager : MonoBehaviour
     {
         if (!loadedBundles.TryGetValue(bundleName, out var bundleRef))
         {
-            bundleRef = new BundleRef { Bundle = LoadBundle(bundleName), RefCount = 1 };
+            var b = LoadBundle(bundleName);
+            if (b == null) return null;
+            bundleRef = new BundleRef { Bundle = b, RefCount = 1 };
             loadedBundles[bundleName] = bundleRef;
         }
+        if (bundleRef.Bundle == null) return null;
         return bundleRef.Bundle.LoadAsset<T>(assetName);
     }
 
@@ -193,7 +245,7 @@ public class ABManager : MonoBehaviour
         bundleRef.RefCount--;
         if (bundleRef.RefCount <= 0)
         {
-            bundleRef.Bundle.Unload(unloadAllLoadedObjects);
+            bundleRef.Bundle?.Unload(unloadAllLoadedObjects);
             loadedBundles.Remove(bundleName);
         }
     }
@@ -204,7 +256,7 @@ public class ABManager : MonoBehaviour
     public void UnloadAll(bool unloadAllLoadedObjects = true)
     {
         foreach (var kv in loadedBundles)
-            kv.Value.Bundle.Unload(unloadAllLoadedObjects);
+            kv.Value.Bundle?.Unload(unloadAllLoadedObjects);
         loadedBundles.Clear();
         AssetBundle.UnloadAllAssetBundles(unloadAllLoadedObjects);
     }
@@ -225,7 +277,10 @@ public class ABManager : MonoBehaviour
         string path = Path.Combine(Application.streamingAssetsPath, bundleName);
         AssetBundle bundle = AssetBundle.LoadFromFile(path);
         if (bundle == null)
+        {
             Debug.LogError($"[ABManager] Bundle 加载失败: {path}");
+            return; // ★ 不把 null 加入字典，避免后续 NRE
+        }
         loadedBundles[bundleName] = new BundleRef { Bundle = bundle, RefCount = 0 };
     }
 

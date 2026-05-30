@@ -15,21 +15,26 @@ public class Projectile : MonoBehaviour
 
     private Rigidbody2D rb;
     private bool hasHit;
+    private SamplePool pool;
+    private bool hasPool;
+    private Coroutine lifetimeCoroutine;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         if (rb == null) rb = gameObject.AddComponent<Rigidbody2D>();
-        
-        // Ensure physics settings are correct for a projectile
+
         rb.gravityScale = 0f;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
-        
-        // Destroy self after lifeTime seconds to prevent lag
-        Destroy(gameObject, lifeTime);
-        
-        // Give initial velocity
+
+        lifetimeCoroutine = StartCoroutine(LifetimeRoutine());
         rb.velocity = transform.right * speed;
+    }
+
+    private System.Collections.IEnumerator LifetimeRoutine()
+    {
+        yield return new WaitForSecondsRealtime(lifeTime);
+        ReturnToPool();
     }
 
     void OnTriggerEnter2D(Collider2D collision)
@@ -65,9 +70,45 @@ public class Projectile : MonoBehaviour
             // 生成命中特效 (Spawn Hit VFX)
             Instantiate(hitEffectPrefab, transform.position, Quaternion.identity);
         }
-        Destroy(gameObject);
+        ReturnToPool();
     }
-    
+
+    void ReturnToPool()
+    {
+        if (lifetimeCoroutine != null)
+        {
+            StopCoroutine(lifetimeCoroutine);
+            lifetimeCoroutine = null;
+        }
+        if (hasPool)
+        {
+            hasHit = false;
+            rb.velocity = Vector2.zero;
+            pool.Return(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    public void AssignPool(SamplePool projectilePool)
+    {
+        pool = projectilePool;
+        hasPool = pool != null;
+    }
+
+    public void OnGetFromPool()
+    {
+        hasHit = false;
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        rb.gravityScale = 0f;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.velocity = transform.right * speed;
+        if (lifetimeCoroutine != null) StopCoroutine(lifetimeCoroutine);
+        lifetimeCoroutine = StartCoroutine(LifetimeRoutine());
+    }
+
     // Setup method to pass dynamic stats from WeaponData
     public void Setup(int damage, float knockbackForce, LayerMask targetLayer)
     {

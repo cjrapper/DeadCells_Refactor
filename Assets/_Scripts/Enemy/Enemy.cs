@@ -14,19 +14,23 @@ public abstract class Enemy : MonoBehaviour, IDamageable
     public float moveSpeed = 5f;
     public float chaseSpeed = 7f;
     public float chaseRange = 5f;
+    public float territoryRange = 10f;
     public Vector3 startPos;
 
     [Header("Health Settings")]
     public int maxHealth = 100;
     protected int currentHealth;
 
+    [Header("Vision Settings")]
+    public float visionHeight = 3f;
+
     [Header("Attack Settings")]
     public float attackRange = 1f;
     public int damage = 1;
     public float windupTime = 0.3f; // 攻击预警时间
     public float attackDuration = 0.2f; // 攻击动作持续时间
-    public float attackCooldown = 0.6f;
-    public float lungeSpeed = 10f; // 冲刺速度
+    public float attackCooldown = 1.5f;
+    public float lungeSpeed = 8f; // 冲刺速度
     public LayerMask playerLayer;
     public Transform attackPos;
     public GameObject alertSign;
@@ -45,7 +49,7 @@ public abstract class Enemy : MonoBehaviour, IDamageable
         sr = GetComponent<SpriteRenderer>();
         bodyCollider = GetComponent<Collider2D>();
         currentHealth = maxHealth;
-        alertSign.SetActive(false);
+        if (alertSign != null) alertSign.SetActive(false);
 
         StateMachine = new EnemyStateMachine();
         patrolState = new PatrolState(this, StateMachine);
@@ -89,6 +93,14 @@ public abstract class Enemy : MonoBehaviour, IDamageable
         nextAttackTime = Time.time + attackCooldown;
     }
 
+    public bool CanSeePlayer()
+    {
+        if (player == null) return false;
+        float distSqr = (transform.position - player.position).sqrMagnitude;
+        if (distSqr > chaseRange * chaseRange) return false;
+        return Mathf.Abs(transform.position.y - player.position.y) <= visionHeight;
+    }
+
     // 敌人受击逻辑
     public virtual void TakeDamage(int amount, Vector3 sourcePosition, float knockbackForce)
     {
@@ -120,11 +132,12 @@ public abstract class Enemy : MonoBehaviour, IDamageable
         {
             Color originalColor = sr.color;
             sr.color = Color.red;
-            yield return new WaitForSeconds(0.1f);
+            yield return FlashWait;
             sr.color = originalColor;
         }
     }
 
+    private static readonly WaitForSeconds FlashWait = new WaitForSeconds(0.1f);
     private float nextAttackTime;
 
     // 获取敌人背部中心点 (可用于背刺判定或特效生成)

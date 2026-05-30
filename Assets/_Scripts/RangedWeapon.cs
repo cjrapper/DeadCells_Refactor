@@ -25,16 +25,47 @@ public class RangedWeapon : WeaponData
         float facingDir = holder.transform.localScale.x;
         Quaternion rotation = facingDir > 0 ? Quaternion.identity : Quaternion.Euler(0, 180, 0);
 
-        // Spawn Projectile
-        GameObject projObj = Instantiate(projectilePrefab, spawnPoint.position, rotation);
-        
+        // Try to get projectile from pool, fallback to Instantiate
+        SamplePool projectilePool = null;
+        var poolObj = GameObject.Find("ProjectilePool");
+        if (poolObj != null) projectilePool = poolObj.GetComponent<SamplePool>();
+
+        GameObject projObj;
+        Projectile projScript = null;
+
+        if (projectilePool != null)
+        {
+            projObj = projectilePool.Get();
+            if (projObj != null)
+            {
+                projObj.transform.position = spawnPoint.position;
+                projObj.transform.rotation = rotation;
+                projScript = projObj.GetComponent<Projectile>();
+                if (projScript != null)
+                {
+                    projScript.speed = projectileSpeed;
+                    projScript.OnGetFromPool();
+                }
+            }
+            else
+            {
+                projObj = Instantiate(projectilePrefab, spawnPoint.position, rotation);
+            }
+        }
+        else
+        {
+            projObj = Instantiate(projectilePrefab, spawnPoint.position, rotation);
+        }
+
+        // Trigger Hit Stop for combat feel
+        HitStop.Stop(0.05f);
+
         // Setup Projectile Stats
-        Projectile projScript = projObj.GetComponent<Projectile>();
+        if (projScript == null) projScript = projObj.GetComponent<Projectile>();
         if (projScript != null)
         {
-            projScript.speed = projectileSpeed;
-            // Pass stats from WeaponData to Projectile
             projScript.Setup(damage, knockbackForce, targetLayer);
+            if (projectilePool != null) projScript.AssignPool(projectilePool);
         }
     }
 }

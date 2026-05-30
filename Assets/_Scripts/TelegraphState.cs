@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class TelegraphState : EnemyState
 {
+    private static readonly WaitForSeconds PopUpDelay = new WaitForSeconds(0.1f);
     private float timer;
     private Coroutine popUpCoroutine;
 
@@ -12,8 +13,8 @@ public class TelegraphState : EnemyState
     public override void Enter()
     {
         timer = enemy.windupTime;
-        enemy.rb.velocity = Vector2.zero;
-        if(enemy.player != null)
+        enemy.rb.velocity = new Vector2(0, enemy.rb.velocity.y);
+        if(enemy.player != null && enemy.alertSign != null)
         {
             enemy.alertSign.SetActive(true);
             enemy.alertSign.transform.localScale = Vector3.zero;
@@ -24,11 +25,10 @@ public class TelegraphState : EnemyState
     protected IEnumerator PopUp(GameObject alertSign)
     {
         float popUpSpeed = 5f;
-        float popUpDelay = 0.1f;
 
-        yield return new WaitForSeconds(popUpDelay);
+        yield return PopUpDelay;
 
-        while (alertSign.transform.localScale.x < 1)
+        while (alertSign != null && alertSign.transform.localScale.x < 1)
         {
             alertSign.transform.localScale += Vector3.one * popUpSpeed * Time.deltaTime;
             yield return null;
@@ -56,7 +56,7 @@ public class TelegraphState : EnemyState
             popUpCoroutine = null;
         }
 
-        if(enemy.player != null)
+        if(enemy.player != null && enemy.alertSign != null)
         {
             enemy.alertSign.SetActive(false);
         }

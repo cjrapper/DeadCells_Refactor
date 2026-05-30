@@ -11,22 +11,38 @@ public class ChaseState : EnemyState
     {
         if(enemy.player == null) return;
         enemy.UpdateVisuals();
+
         Vector2 dir = (enemy.player.position - enemy.transform.position).normalized;
-        enemy.rb.velocity = new Vector2(dir.x * enemy.moveSpeed, enemy.rb.velocity.y);
+        enemy.rb.velocity = new Vector2(dir.x * enemy.chaseSpeed, enemy.rb.velocity.y);
     }
     public override void LogicUpdate()
     {
-        if(enemy.player == null)
+        if (enemy.player == null)
         {
             stateMachine.ChangeState(enemy.patrolState);
             return;
         }
-        float dist = Vector2.Distance(enemy.transform.position, enemy.player.position);
-        if(dist > enemy.chaseRange)
+
+        if (!enemy.CanSeePlayer())
         {
             stateMachine.ChangeState(enemy.patrolState);
+            return;
         }
-        else if(dist < enemy.attackRange && enemy.CanAttack())
+
+        Vector2 diff = enemy.transform.position - enemy.player.position;
+        float distSqr = diff.sqrMagnitude;
+        float chaseRangeSqr = enemy.chaseRange * enemy.chaseRange;
+
+        float distFromStartX = Mathf.Abs(enemy.transform.position.x - enemy.startPos.x);
+
+        if (distSqr > chaseRangeSqr || distFromStartX > enemy.territoryRange)
+        {
+            stateMachine.ChangeState(enemy.patrolState);
+            return;
+        }
+
+        float attackRangeSqr = enemy.attackRange * enemy.attackRange;
+        if (distSqr < attackRangeSqr && enemy.CanAttack())
         {
             stateMachine.ChangeState(enemy.telegraphState);
         }

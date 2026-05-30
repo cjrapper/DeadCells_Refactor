@@ -17,6 +17,11 @@ public class GhostEffect : MonoBehaviour
     public void Init(Sprite sprite, Vector3 pos, Quaternion rot, Vector3 scale, SamplePool pool)
     {
         this.pool = pool;
+        if (sr == null)
+        {
+            if (pool != null) pool.Return(gameObject);
+            return;
+        }
         sr.sprite = sprite;
         transform.position = pos;
         transform.rotation = rot;

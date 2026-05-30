@@ -11,8 +11,25 @@ public class ABLoader : MonoBehaviour
 
     private void Start()
     {
-        ABManager.Instance.Init();
-        ABManager.Instance.InstantiateAsync(bundleName, assetName, OnEnemyLoaded);
+        if (ABManager.Instance == null)
+        {
+            Debug.LogError("[ABLoader] ABManager.Instance 为 null！请确保场景中有 ABManager 组件");
+            return;
+        }
+
+        // 禁用场景里残留的 DummyEnemy_BT，避免两个敌人同时存在
+        GameObject dummy = GameObject.Find("DummyEnemy_BT");
+        if (dummy != null)
+        {
+            dummy.SetActive(false);
+            Debug.Log("[ABLoader] 已禁用 DummyEnemy_BT（仅保留 AB 版敌人）");
+        }
+
+        // ★ 异步初始化，不再卡帧
+        ABManager.Instance.InitAsync(() =>
+        {
+            ABManager.Instance.InstantiateAsync(bundleName, assetName, OnEnemyLoaded);
+        });
     }
 
     private void OnEnemyLoaded(GameObject enemyObj)
