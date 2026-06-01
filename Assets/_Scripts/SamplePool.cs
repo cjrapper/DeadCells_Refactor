@@ -9,7 +9,6 @@ public class SamplePool : MonoBehaviour
     public int prewarmCount = 10;
     public int maxPoolSize = 30;
     private Queue<GameObject> pool = new Queue<GameObject>();//对象池
-    private int createdCount;
 
     void Awake()
     {
@@ -27,7 +26,6 @@ public class SamplePool : MonoBehaviour
     {
         var obj = Instantiate(prefab, transform);
         obj.SetActive(false);
-        createdCount++;
         return obj;
     }
 
@@ -40,7 +38,7 @@ public class SamplePool : MonoBehaviour
             return obj;
         }
         if (prefab == null) return null;
-        if (maxPoolSize > 0 && createdCount >= maxPoolSize) return null;
+        // 池空则直接创建，不做上限限制；峰值对象在Return时通过软上限回收
         var newObj = CreateInstance();
         newObj.SetActive(true);
         return newObj;
@@ -49,9 +47,9 @@ public class SamplePool : MonoBehaviour
     public GameObject Return(GameObject obj)
     {
         if (obj == null) return null;
+        // 软上限：池中已满size个，则不再回收，直接销毁
         if (maxPoolSize > 0 && pool.Count >= maxPoolSize)
         {
-            createdCount = Mathf.Max(0, createdCount - 1);
             Destroy(obj);
             return null;
         }
