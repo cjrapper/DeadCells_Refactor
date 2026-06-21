@@ -1,6 +1,8 @@
 using UnityEngine;
 
-public class ChaseState : EnemyState
+namespace AngryBirds.Enemy
+{
+    public class ChaseState : EnemyState
 {
     public ChaseState(Enemy enemy, EnemyStateMachine stateMachine) : base(enemy, stateMachine){}
     public override void Enter()
@@ -51,4 +53,5 @@ public class ChaseState : EnemyState
     {
 
     }
+}
 }

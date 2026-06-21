@@ -1,9 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
-public class SamplePool : MonoBehaviour
+namespace AngryBirds.Core
+{
+    public class SamplePool : MonoBehaviour
 {
     public GameObject prefab;
     public int prewarmCount = 10;
@@ -58,4 +59,5 @@ public class SamplePool : MonoBehaviour
         pool.Enqueue(obj);
         return obj;
     }
+}
 }

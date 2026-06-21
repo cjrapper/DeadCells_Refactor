@@ -1,6 +1,8 @@
 using UnityEngine;
 
-public class AutoDestroy : MonoBehaviour
+namespace AngryBirds.Player
+{
+    public class AutoDestroy : MonoBehaviour
 {
     void Start()
     {
@@ -15,4 +17,4 @@ public class AutoDestroy : MonoBehaviour
             Destroy(gameObject, 1f); // 保底 1秒销毁
         }
     }
-}
+}}

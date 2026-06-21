@@ -2,17 +2,19 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SequenceNode : BehaviourNode
+namespace AngryBirds.AI.Node
+{
+    public class SequenceNode : BehaviourNode
 {
     public SequenceNode(params BehaviourNode[] nodes) : base(nodes) { }
-    public override NodeState Evaluate()
+    protected override NodeState Evaluate()
     {
         for (int i = 0; i < children.Count; i++)
         {
-            NodeState state = children[i].Evaluate();
+            NodeState state = children[i].Tick();
             if (state != NodeState.Success)
                 return state;
         }
         return NodeState.Success;
     }
-}
+}}

@@ -1,7 +1,9 @@
 using System;
 using UnityEngine;
 
-public class PatrolState : EnemyState
+namespace AngryBirds.Enemy
+{
+    public class PatrolState : EnemyState
 {
     public PatrolState(Enemy enemy, EnemyStateMachine stateMachine):base(enemy, stateMachine) {}
     public override void Enter()
@@ -50,4 +52,5 @@ public class PatrolState : EnemyState
     {
         // enemy.animator.SetBool("IsPatrolling", false);
     }
+}
 }

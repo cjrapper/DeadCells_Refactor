@@ -1,7 +1,11 @@
 using UnityEngine;
 // using DG.Tweening; // 如果你有DoTween，没有就用协程
 
-public class GhostEffect : MonoBehaviour
+using AngryBirds.Core;
+
+namespace AngryBirds.Player
+{
+    public class GhostEffect : MonoBehaviour
 {
     public float fadeTime = 0.5f;
     private SpriteRenderer sr;
@@ -56,4 +60,5 @@ public class GhostEffect : MonoBehaviour
             Destroy(gameObject);
         }
     }
+}
 }

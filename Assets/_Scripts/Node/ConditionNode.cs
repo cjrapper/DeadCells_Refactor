@@ -2,17 +2,20 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ConditionNode : BehaviourNode
+namespace AngryBirds.AI.Node
 {
-    private Func<bool> condition;
-
-    public ConditionNode(Func<bool> condition)
+    public class ConditionNode : BehaviourNode
     {
-        this.condition = condition;
-    }
+        private Func<bool> condition;
 
-    public override NodeState Evaluate()
-    {
-        return condition() ? NodeState.Success : NodeState.Failure;
+        public ConditionNode(Func<bool> condition)
+        {
+            this.condition = condition;
+        }
+
+        protected override NodeState Evaluate()
+        {
+            return condition() ? NodeState.Success : NodeState.Failure;
+        }
     }
 }

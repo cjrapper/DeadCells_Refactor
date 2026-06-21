@@ -1,6 +1,8 @@
 using UnityEngine;
 
-public class HurtState : EnemyState
+namespace AngryBirds.Enemy
+{
+    public class HurtState : EnemyState
 {
     private float hurtTimer;
     private float hurtDuration = 0.3f;
@@ -29,4 +31,4 @@ public class HurtState : EnemyState
             }
         }
     }
-}
+}}

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class EventCenter : MonoBehaviour
+namespace AngryBirds.Core
+{
+    public class EventCenter : MonoBehaviour
 {
     public static EventCenter Instance;
 
@@ -117,4 +119,5 @@ public class EventCenter : MonoBehaviour
             return del.GetInvocationList().Length;
         return 0;
     }
+}
 }

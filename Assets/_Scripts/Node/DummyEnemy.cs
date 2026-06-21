@@ -1,7 +1,11 @@
 using System.Collections;
 using UnityEngine;
 
-public class DummyEnemy : MonoBehaviour, IDamageable
+using AngryBirds.Core;
+
+namespace AngryBirds.AI.Node
+{
+    public class DummyEnemy : MonoBehaviour, IDamageable
 {
     // 组件引用
     private Rigidbody2D rb;
@@ -42,7 +46,7 @@ public class DummyEnemy : MonoBehaviour, IDamageable
     {
         blackboard.Set("player", player);
         if (rootNode != null)
-            rootNode.Evaluate();
+            rootNode.Tick();
         UpdateVisual();
     }
 
@@ -134,4 +138,5 @@ public class DummyEnemy : MonoBehaviour, IDamageable
         yield return FlashWait;
         sr.color = originalColor;
     }
+}
 }

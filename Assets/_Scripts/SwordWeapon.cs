@@ -1,8 +1,13 @@
 using UnityEngine;
 
-// Create Asset Menu for easy creation in Project window
-[CreateAssetMenu(fileName = "New Sword Weapon", menuName = "Combat/Sword Weapon")]
-public class SwordWeapon : WeaponData
+using AngryBirds.Core;
+using AngryBirds.Player;
+
+namespace AngryBirds.Combat
+{
+    // Create Asset Menu for easy creation in Project window
+    [CreateAssetMenu(fileName = "New Sword Weapon", menuName = "Combat/Sword Weapon")]
+    public class SwordWeapon : WeaponData
 {
     [Header("Attack Settings")]
     public LayerMask targetLayer;
@@ -36,4 +41,5 @@ public class SwordWeapon : WeaponData
             HitStop.Stop(0.05f);
         }
     }
+}
 }

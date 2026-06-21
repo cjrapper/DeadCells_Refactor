@@ -2,873 +2,510 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Cinemachine;
 
+using AngryBirds.Core;
+using AngryBirds.Combat;
 
-public class PlayerController : MonoBehaviour, IDamageable
+namespace AngryBirds.Player
 {
-    #region Components
-    public Rigidbody2D RigidBody { get; private set; }
-    public Animator Animator { get; private set; }
-    public SpriteRenderer SpriteRenderer { get; private set; }
-    public TrailRenderer TrailRenderer { get; private set; }
-    public PLayerEffect PlayerVFX { get; private set; } 
-    public Collider2D BodyCollider { get; private set; }
-
-    [Header("Check Transforms")]
-    public Transform GroundCheckPos; 
-    public Transform WallCheckPos;   
-    public Transform AttackOrigin;   
-    public Transform WeaponPivotTransform; 
-    #endregion
-
-    #region Settings
-    [Header("Health")]
-    public int maxHealth = 100;
-    private int currentHealth;
-
-    [Header("Movement")]
-    public float moveSpeed = 5f;
-    public float jumpForce = 12f;
-    public int MaxJumpCount = 1; 
-    public float RisingGravityScale = 1f; 
-    public float FallingGravityScale = 2.5f; 
-
-    [Header("Jump Physics")]
-    public float JumpBufferDuration = 0.2f; 
-    public float CoyoteDuration = 0.1f;     
-
-    [Header("Physics")]
-    public PhysicsMaterial2D noFrictionMaterial;
-
-    [Header("Physics Layers")]
-    public float CheckRadius = 0.3f;
-    public LayerMask GroundLayer;
-    public LayerMask WallLayer;
-    public LayerMask OneWayPlatformLayer;
-
-    [Header("Combat")]
-    public List<WeaponData> WeaponInventory; 
-    public WeaponData CurrentWeapon; 
-    private int currentWeaponIndex = 0;
-    public AnimationCurve swingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
-    public float swingDuration = 0.25f;
-    public float maxSwingAngle = 120f;
-    private float nextAttackTime = 0f;
-
-    [Header("Dash")]
-    public float dashSpeed = 15f;
-    public float dashTime = 0.2f;
-    public float dashCooldown = 1f;
-
-    [Header("VFX")]
-    public GameObject HitEffectPrefab;
-    public CinemachineImpulseSource ImpulseSource;
-    public GameObject JumpDustPrefab;
-    public GameObject LandDustPrefab;
-
-    // Cached VFX pool references (lazy lookup with Instantiate fallback)
-    private SamplePool jumpDustPool;
-    private SamplePool landDustPool;
-    private SamplePool hitEffectPool;
-    private bool poolsInitialized;
-
-    [Header("One Way Platform")]
-    // 单向平台下落参数：不再需要，改为瞬移方案
-    private Collider2D currentPlatformCollider;
-
-    [Header("Wall Mechanics")]
-    public float wallSlideSpeed;
-    public Vector2 wallJumpForce;
-    public float wallJumpTime = 0.2f;
-
-    [Header("Debug")]
-    public bool showDebugInfo = true;
-    [SerializeField] private string currentStateName;
-    #endregion
-
-    // Cached WaitForSeconds to avoid per-coroutine allocations
-    private static readonly WaitForSeconds FlashWait = new WaitForSeconds(0.1f);
-    private static readonly WaitForSeconds KnockbackWait = new WaitForSeconds(0.2f);
-
-    #region Runtime
-    public float InputX { get; private set; }
-    public bool IsHurting { get; private set; }
-    public float JumpBufferTimer { get; private set; }
-    public float CoyoteTimeCounter { get; private set; }
-
-    private float coyoteTimer; 
-    private float jumpBufferTimer; 
-    private bool isFallingThroughPlatform = false;
-    private Coroutine swingCoroutine;
-    private Vector2 WorkVector;
-
-    // Cached FSM state instances (reuse to avoid per-frame GC allocations)
-    private InnerIdleState innerIdleState;
-    private InnerMoveState innerMoveState;
-    private InnerJumpState innerJumpState;
-    private InnerFallState innerFallState;
-    private InnerDashState innerDashState;
-    private InnerAttackState innerAttackState;
-    private InnerWallSlideState innerWallSlideState;
-    private InnerWallJumpState innerWallJumpState;
-    #endregion
-
-    void Awake()
-    {
-        RigidBody = GetComponent<Rigidbody2D>();
-        TrailRenderer = GetComponent<TrailRenderer>();
-        BodyCollider = GetComponent<Collider2D>();
-        SpriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        PlayerVFX = GetComponentInChildren<PLayerEffect>();
-        Animator = GetComponentInChildren<Animator>();
-
-        if (RigidBody == null) Debug.LogError("PlayerController: Rigidbody2D is missing!");
-        if (GroundCheckPos == null) Debug.LogWarning("PlayerController: Ground Check Pos is not assigned!");
-        if (WallCheckPos == null) Debug.LogWarning("PlayerController: Wall Check Pos is not assigned!");
-        
-        // Fix Wall Stick via serialized material
-        if (noFrictionMaterial != null)
-        {
-            BodyCollider.sharedMaterial = noFrictionMaterial;
-        }
-
-        currentHealth = maxHealth;
-        if (WeaponPivotTransform == null && AttackOrigin != null)
-        {
-            WeaponPivotTransform = AttackOrigin;
-        }
-
-        if (WeaponInventory != null && WeaponInventory.Count > 0)
-        {
-            CurrentWeapon = WeaponInventory[0];
-            currentWeaponIndex = 0;
-        }
-
-        // Pre-create FSM state instances to avoid per-frame allocations
-        innerIdleState = new InnerIdleState(this);
-        innerMoveState = new InnerMoveState(this);
-        innerJumpState = new InnerJumpState(this);
-        innerFallState = new InnerFallState(this);
-        innerDashState = new InnerDashState(this);
-        innerAttackState = new InnerAttackState(this);
-        innerWallSlideState = new InnerWallSlideState(this);
-        innerWallJumpState = new InnerWallJumpState(this);
-    }
-
-    void Start()
-    {
-        if (SpriteRenderer != null) SpriteRenderer.sortingOrder = 10;
-        InitializeInnerFSM();
-    }
-
-    void Update()
-    {
-        if (IsHurting) return;
-
-        // 1. Input
-        InputX = Input.GetAxisRaw("Horizontal");
-
-        // 2. Timers
-        if (CheckGrounded()) coyoteTimer = CoyoteDuration;
-        else coyoteTimer -= Time.deltaTime;
-
-        if (Input.GetButtonDown("Jump")) jumpBufferTimer = JumpBufferDuration;
-        else jumpBufferTimer -= Time.deltaTime;
-
-        CoyoteTimeCounter = coyoteTimer;
-        JumpBufferTimer = jumpBufferTimer;
-
-        // 3. FSM
-        RunInnerFSM();
-
-        // 4. Debug
-        if (Input.GetKeyDown(KeyCode.BackQuote)) showDebugInfo = !showDebugInfo;
-
-        // 5. Weapon
-        if (Input.GetKeyDown(KeyCode.Q)) SwitchWeapon();
-    }
-
-    void FixedUpdate()
-    {
-        if (IsHurting) return;
-        RunInnerPhysics();
-    }
-
-    // ============================================================================
-    //  Public Methods
-    // ============================================================================
-
-    public void SpawnDust(GameObject dustPrefab)
-    {
-        if (dustPrefab != null && GroundCheckPos != null)
-        {
-            InitVfxPools();
-
-            SamplePool pool = null;
-            if (dustPrefab == JumpDustPrefab) pool = jumpDustPool;
-            else if (dustPrefab == LandDustPrefab) pool = landDustPool;
-
-            if (pool != null)
-            {
-                GameObject dust = pool.Get();
-                if (dust != null)
-                {
-                    dust.transform.position = GroundCheckPos.position;
-                    dust.transform.rotation = Quaternion.identity;
-                    StartCoroutine(ReturnAfterDelay(dust, pool, 1f));
-                    return;
-                }
-            }
-            // 生成灰尘特效 (Spawn Dust VFX) — fallback
-            Instantiate(dustPrefab, GroundCheckPos.position, Quaternion.identity);
-        }
-    }
-
-    public bool CheckGrounded()
-    {
-        if (GroundCheckPos == null) return false;
-        return !isFallingThroughPlatform && (Physics2D.OverlapCircle(GroundCheckPos.position, CheckRadius, GroundLayer) || Physics2D.OverlapCircle(GroundCheckPos.position, CheckRadius, OneWayPlatformLayer));
-    }
-
-    public bool CheckTouchingWall()
-    {
-        if (WallCheckPos == null) return false;
-        return !isFallingThroughPlatform && Physics2D.OverlapCircle(WallCheckPos.position, CheckRadius, WallLayer);
-    }
-
-    public void SwitchWeapon()
-    {
-        if (WeaponInventory == null || WeaponInventory.Count == 0) return;
-
-        currentWeaponIndex++;
-        if (currentWeaponIndex >= WeaponInventory.Count)
-        {
-            currentWeaponIndex = 0;
-        }
-
-        CurrentWeapon = WeaponInventory[currentWeaponIndex];
-        Debug.Log($"Switched to weapon: {CurrentWeapon.name}");
-    }
-
-    private void InitVfxPools()
-    {
-        if (poolsInitialized) return;
-        poolsInitialized = true;
-
-        var jumpPoolObj = GameObject.Find("JumpDustPool");
-        if (jumpPoolObj != null) jumpDustPool = jumpPoolObj.GetComponent<SamplePool>();
-
-        var landPoolObj = GameObject.Find("LandDustPool");
-        if (landPoolObj != null) landDustPool = landPoolObj.GetComponent<SamplePool>();
-
-        var hitPoolObj = GameObject.Find("HitEffectPool");
-        if (hitPoolObj != null) hitEffectPool = hitPoolObj.GetComponent<SamplePool>();
-    }
-
-    private IEnumerator ReturnAfterDelay(GameObject obj, SamplePool pool, float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        if (pool != null && obj != null) pool.Return(obj);
-    }
-
-    public void SetJumpBuffer(float value) => jumpBufferTimer = value;
-    public void SetCoyoteTime(float value) => coyoteTimer = value;
-
-    // 处理受击逻辑：扣血、UI更新、击退、特效、震动
-    public void TakeDamage(int amount,Vector3 sourcePosition, float knockbackForce)
-    {
-        if (IsHurting) return; // 避免短时间内连续受击
-
-        currentHealth -= amount;
-        if(EventCenter.Instance != null)
-        {
-            EventCenter.Instance.Broadcast(EventCenter.EventType.PlayerHealthChange.ToString(), currentHealth, maxHealth);
-        }
-        
-        // 击退逻辑 (Knockback)
-        if (RigidBody != null)
-        {
-            StartCoroutine(KnockbackRoutine(knockbackForce));
-            
-            // 计算击退方向（从伤害源推向玩家）
-            Vector2 direction = (transform.position - sourcePosition).normalized;
-            // 添加向上的分量，产生抛物线击退效果
-            Vector2 force = direction * knockbackForce + Vector2.up * (knockbackForce * 0.5f);
-            
-            RigidBody.velocity = Vector2.zero; // 重置当前速度，保证击退力度一致
-            RigidBody.AddForce(force, ForceMode2D.Impulse);
-        }
-
-        // 视觉反馈 (Visual Feedback)
-        StartCoroutine(FlashEffect());
-
-        // 屏幕震动
-        if(ImpulseSource != null)
-        {
-            Vector3 shakeVelocity = new Vector3(UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f), 0) * 0.5f;
-            ImpulseSource.GenerateImpulse(shakeVelocity);
-        }
-
-        // 受击特效
-        if(HitEffectPrefab != null)
-        {
-            InitVfxPools();
-            if (hitEffectPool != null)
-            {
-                GameObject effect = hitEffectPool.Get();
-                if (effect != null)
-                {
-                    effect.transform.position = transform.position;
-                    effect.transform.rotation = Quaternion.identity;
-                    StartCoroutine(ReturnAfterDelay(effect, hitEffectPool, 1f));
-                }
-                else
-                {
-                    Instantiate(HitEffectPrefab, transform.position, Quaternion.identity);
-                }
-            }
-            else
-            {
-                // 生成受击特效 (Spawn Hit VFX) — fallback
-                Instantiate(HitEffectPrefab, transform.position, Quaternion.identity);
-            }
-        }
-
-        if (currentHealth <= 0) Die();
-    }
-
-    System.Collections.IEnumerator FlashEffect()
-    {
-        if(SpriteRenderer != null)
-        {
-            Color original = SpriteRenderer.color;
-            SpriteRenderer.color = Color.red;
-            yield return FlashWait;
-            SpriteRenderer.color = original;
-        }
-    }
-
-    private static float previousTimeScale = 1f;
-
-    void Die()
-    {
-        Debug.Log("Game Over!");
-        if(EventCenter.Instance != null)
-        {
-            EventCenter.Instance.Broadcast(EventCenter.EventType.PlayerDead.ToString());
-        }
-        // 只在时间正常运行时才保存（避免 HitStop 期间 timeScale=0 被错误保存）
-        if (Time.timeScale > 0f)
-            previousTimeScale = Time.timeScale;
-        Time.timeScale = 0f;
-    }
-
-    public static void RestoreTimeScale()
-    {
-        Time.timeScale = previousTimeScale;
-    }
-
-    IEnumerator PlaySwingCurve()
-    {
-        if (WeaponPivotTransform == null || swingDuration <= 0f || swingCurve == null)
-        {
-            swingCoroutine = null;
-            yield break;
-        }
-
-        float elapsed = 0f;
-        while (elapsed < swingDuration)
-        {
-            float progress = elapsed / swingDuration;
-            float curveValue = swingCurve.Evaluate(progress);
-            WeaponPivotTransform.localRotation = Quaternion.Euler(0f, 0f, -curveValue * maxSwingAngle);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        WeaponPivotTransform.localRotation = Quaternion.identity;
-        swingCoroutine = null;
-    }
-
-    public bool CanAttack()
-    {
-        return CurrentWeapon != null && Time.time >= nextAttackTime;
-    }
-
-    public void UpdateNextAttackTime()
-    {
-        if (CurrentWeapon != null)
-        {
-            nextAttackTime = Time.time + CurrentWeapon.cooldown;
-        }
-    }
-
-    public void StartSwing()
-    {
-        if (swingCoroutine != null) StopCoroutine(swingCoroutine);
-        swingCoroutine = StartCoroutine(PlaySwingCurve());
-    }
-
-    IEnumerator KnockbackRoutine(float force)
-    {
-        IsHurting = true;
-        yield return KnockbackWait;
-        IsHurting = false;
-    }
-
-    // Platform Collision Handling
-    void OnCollisionEnter2D(Collision2D collision)
-    {
-        if (collision.gameObject.tag == "OneWayPlatform")
-        {
-            currentPlatformCollider = collision.collider;
-        }
-    }
-    void OnCollisionStay2D(Collision2D collision)
-    {
-        if (collision.gameObject.tag == "OneWayPlatform")
-        {
-            currentPlatformCollider = collision.collider;
-        }
-    }
-    void OnCollisionExit2D(Collision2D collision)
-    {
-        if (collision.gameObject.tag == "OneWayPlatform" && collision.collider == currentPlatformCollider)
-        {
-            currentPlatformCollider = null;
-        }
-    }
-
-    private Coroutine platformDropCoroutine;
-
-    public void StartPlatformDrop()
-    {
-        if (currentPlatformCollider == null) return;
-        if (platformDropCoroutine != null) StopCoroutine(platformDropCoroutine);
-        platformDropCoroutine = StartCoroutine(PlatformDropRoutine());
-    }
-
     /// <summary>
-    /// 单向平台下落：无视碰撞一帧，把角色瞬移到平台下方，让重力自然接管。
-    /// 不用定时器、不改速度、不设重力，避免穿透多层平台。
+    /// 玩家控制器 —— 状态机编排器。
+    /// 所有具体逻辑已委托给 PlayerInput / PlayerMovement / PlayerHealth / PlayerCombat / PLayerEffect。
     /// </summary>
-    IEnumerator PlatformDropRoutine()
+    public class PlayerController : MonoBehaviour
     {
-        Collider2D platform = currentPlatformCollider;
-        isFallingThroughPlatform = true;
+        // ==================== 组件引用（Awake时自动获取）====================
+        public PlayerInput PlayerInput { get; private set; }
+        public PlayerMovement PlayerMovement { get; private set; }
+        public PlayerHealth PlayerHealth { get; private set; }
+        public PlayerCombat PlayerCombat { get; private set; }
+        public PLayerEffect PlayerVFX { get; private set; }
+        public Animator Animator { get; private set; }
+        public SpriteRenderer SpriteRenderer { get; private set; }
 
-        // 忽略碰撞一帧就够了
-        Physics2D.IgnoreCollision(BodyCollider, platform, true);
+        // ==================== 快捷访问（给 FSM 状态用）====================
+        public Rigidbody2D RigidBody => PlayerMovement != null ? PlayerMovement.Rb : GetComponent<Rigidbody2D>();
+        public Collider2D BodyCollider => PlayerMovement != null ? PlayerMovement.BodyCollider : GetComponent<Collider2D>();
+        public float InputX => PlayerInput != null ? PlayerInput.InputX : 0;
 
-        // 把角色瞬移到平台下方（角色碰撞体高度 + 一点余量）
-        float dropDistance = BodyCollider.bounds.size.y + 0.15f;
-        transform.position += Vector3.down * dropDistance;
+        // ==================== 配置参数 ====================
+        [Header("Check Transforms")]
+        public Transform GroundCheckPos;
+        public Transform WallCheckPos;
+        public Transform AttackOrigin;
+        public Transform WeaponPivotTransform;
 
-        yield return null; // 等一帧，让物理引擎更新
+        [Header("Combat — 保留在 PlayerController 以兼容场景序列化，Awake 注入到 PlayerCombat")]
+        public List<AngryBirds.Combat.WeaponData> WeaponInventory;
+        public AngryBirds.Combat.WeaponData CurrentWeapon;
+        public AnimationCurve swingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+        public float swingDuration = 0.25f;
+        public float maxSwingAngle = 120f;
 
-        Physics2D.IgnoreCollision(BodyCollider, platform, false);
-        isFallingThroughPlatform = false;
-        platformDropCoroutine = null;
-    }
+        [Header("VFX — 保留以兼容场景序列化")]
+        public GameObject JumpDustPrefab;
+        public GameObject LandDustPrefab;
 
-    void OnDrawGizmos()
-    {
-        if(AttackOrigin != null && CurrentWeapon != null)
+        [Header("Physics — 保留以注入 PlayerMovement")]
+        public float CheckRadius = 0.3f;
+        public LayerMask GroundLayer;
+        public LayerMask WallLayer;
+        public LayerMask OneWayPlatformLayer;
+        public PhysicsMaterial2D noFrictionMaterial;
+
+        [Header("Movement — 保留以注入 PlayerMovement")]
+        public float moveSpeed = 5f;
+        public float jumpForce = 2f;
+        public float RisingGravityScale = 1f;
+        public float FallingGravityScale = 2.5f;
+        public float dashSpeed = 15f;
+        public float dashTime = 0.2f;
+        public float dashCooldown = 1f;
+        public float wallSlideSpeed = 2f;
+        public Vector2 wallJumpForce = new Vector2(10f, 12f);
+        public float wallJumpTime = 0.2f;
+
+        [Header("Debug")]
+        public bool showDebugInfo = true;
+
+        // ==================== 运行时 ====================
+        public float JumpBufferTimer => PlayerInput.JumpBufferTimer;
+        public float CoyoteTimeCounter => PlayerInput.CoyoteTimer;
+
+        // ==================== FSM ====================
+        private BaseState currentInnerState;
+        private InnerIdleState innerIdleState;
+        private InnerMoveState innerMoveState;
+        private InnerJumpState innerJumpState;
+        private InnerFallState innerFallState;
+        private InnerDashState innerDashState;
+        private InnerAttackState innerAttackState;
+        private InnerWallSlideState innerWallSlideState;
+        private InnerWallJumpState innerWallJumpState;
+
+        void Awake()
         {
-            Gizmos.color = Color.blue;
-            Gizmos.DrawWireSphere(AttackOrigin.position, CurrentWeapon.attackRange);
-        }
-        Gizmos.color = Color.red;
-        if (GroundCheckPos != null)
-            Gizmos.DrawWireSphere(GroundCheckPos.position, CheckRadius);
-    }
+            // 自动获取或添加组件
+            PlayerInput = GetComponent<PlayerInput>();
+            PlayerMovement = GetComponent<PlayerMovement>();
+            PlayerHealth = GetComponent<PlayerHealth>();
+            PlayerCombat = GetComponent<PlayerCombat>();
 
-    
+            // 如果组件缺失，自动补齐（无需手动 Add Component）
+            if (PlayerInput == null) PlayerInput = gameObject.AddComponent<PlayerInput>();
+            if (PlayerMovement == null) PlayerMovement = gameObject.AddComponent<PlayerMovement>();
+            if (PlayerHealth == null) PlayerHealth = gameObject.AddComponent<PlayerHealth>();
+            if (PlayerCombat == null) PlayerCombat = gameObject.AddComponent<PlayerCombat>();
 
-    // ============================================================================
-    //  Inner FSM Classes (内部状态机类)
-    //  所有状态逻辑都在此处集中管理，直接访问 PlayerController 的私有成员
-    // ============================================================================
+            PlayerVFX = GetComponentInChildren<PLayerEffect>();
+            Animator = GetComponentInChildren<Animator>();
+            SpriteRenderer = GetComponentInChildren<SpriteRenderer>();
 
-    public abstract class BaseState
-    {
-        protected PlayerController core;
-        protected float startTime;
-
-        public BaseState(PlayerController _core) => core = _core;
-
-        public virtual void Enter() 
-        { 
-            startTime = Time.time;
-            // 调试模式下打印状态切换日志
-            if (core.showDebugInfo) Debug.Log($"Enter State: {this.GetType().Name}");
-        }
-        public virtual void Exit() { }
-        public virtual void LogicUpdate() { }
-        public virtual void PhysicsUpdate() { }
-    }
-
-    /// <summary>
-    /// 站立状态：处理跳跃、移动、攻击、冲刺、下落以及单向平台下落
-    /// </summary>
-    public class InnerIdleState : BaseState
-    {
-        public InnerIdleState(PlayerController core) : base(core) { }
-
-        public override void Enter()
-        {
-            base.Enter();
-            core.SetVelocityX(0); 
-            core.RigidBody.gravityScale = core.FallingGravityScale; // 使用下落重力（通常较大，手感更稳）
-            if(core.Animator != null) core.Animator.CrossFade("Idle", 0.1f);
-        }
-
-        public override void LogicUpdate()
-        {
-            // 切换到移动状态
-            if (core.InputX != 0) core.SwitchInnerState(core.innerMoveState);
-            
-            // 单向平台下落 (S + Jump)
-            if (Input.GetAxisRaw("Vertical") < 0 && Input.GetButtonDown("Jump"))
+            // 注入地面/墙壁检测参数
+            if (PlayerMovement != null)
             {
-                core.StartPlatformDrop();
-                return; // 优先处理下落，避免触发普通跳跃
+                PlayerMovement.groundCheckPos = GroundCheckPos;
+                PlayerMovement.wallCheckPos = WallCheckPos;
+                PlayerMovement.groundLayer = GroundLayer;
+                PlayerMovement.wallLayer = WallLayer;
+                PlayerMovement.oneWayPlatformLayer = OneWayPlatformLayer;
+
+                // 兜底：如果场景序列化丢失（值为 0），按层名字查找
+                if (PlayerMovement.groundLayer.value == 0)
+                {
+                    int layer = LayerMask.NameToLayer("Ground");
+                    if (layer >= 0) PlayerMovement.groundLayer = 1 << layer;
+                }
+                if (PlayerMovement.oneWayPlatformLayer.value == 0)
+                {
+                    int layer = LayerMask.NameToLayer("OneWayPlatform");
+                    if (layer >= 0) PlayerMovement.oneWayPlatformLayer = 1 << layer;
+                }
+                if (PlayerMovement.wallLayer.value == 0)
+                {
+                    int layer = LayerMask.NameToLayer("Ground"); // 项目中 Wall ≈ Ground
+                    if (layer >= 0) PlayerMovement.wallLayer = 1 << layer;
+                }
+                PlayerMovement.checkRadius = CheckRadius;
+                PlayerMovement.noFrictionMaterial = noFrictionMaterial;
+
+
+                // 注入移动参数
+                PlayerMovement.moveSpeed = moveSpeed;
+                PlayerMovement.jumpForce = jumpForce;
+                PlayerMovement.risingGravityScale = RisingGravityScale;
+                PlayerMovement.fallingGravityScale = FallingGravityScale;
+                PlayerMovement.dashSpeed = dashSpeed;
+                PlayerMovement.dashTime = dashTime;
+                PlayerMovement.dashCooldown = dashCooldown;
+                PlayerMovement.wallSlideSpeed = wallSlideSpeed;
+                PlayerMovement.wallJumpForce = wallJumpForce;
+                PlayerMovement.wallJumpTime = wallJumpTime;
             }
 
-            // 普通跳跃
-            if (Input.GetButtonDown("Jump") && core.CheckGrounded())
-                core.SwitchInnerState(core.innerJumpState);
-                
-            // 攻击输入
-            if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1")) 
-                core.SwitchInnerState(core.innerAttackState);
-
-            // 冲刺输入
-            if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
-                core.SwitchInnerState(core.innerDashState);
-                
-            // 自然下落（例如走出边缘）
-            if (!core.CheckGrounded())
-                core.SwitchInnerState(core.innerFallState);
-        }
-    }
-
-    /// <summary>
-    /// 移动状态：处理水平移动、跳跃、攻击等
-    /// </summary>
-    public class InnerMoveState : BaseState
-    {
-        public InnerMoveState(PlayerController core) : base(core) { }
-
-        public override void Enter()
-        {
-            base.Enter();
-            core.RigidBody.gravityScale = core.FallingGravityScale;
-            if(core.Animator != null) core.Animator.CrossFade("Move", 0.1f);
-        }
-
-        public override void LogicUpdate()
-        {
-            core.CheckFlip(); // 检查翻转
-            core.SetVelocityX(core.moveSpeed * core.InputX);
-
-            // 停止移动 -> 切回 Idle
-            if (core.InputX == 0) core.SwitchInnerState(core.innerIdleState);
-            
-            // 单向平台下落 (S + Jump)
-            if (Input.GetAxisRaw("Vertical") < 0 && Input.GetButtonDown("Jump"))
+            // Ghost Pool 注入
+            if (PlayerVFX != null && PoolManager.Instance != null)
             {
-                core.StartPlatformDrop();
+                PlayerVFX.AssignPool(PoolManager.Instance.GetPool(PoolType.Ghost));
+            }
+
+            // 武器轴心 + 注入战斗配置（保留场景序列化）
+            if (PlayerCombat != null)
+            {
+                PlayerCombat.attackOrigin = AttackOrigin;
+                PlayerCombat.weaponPivot = WeaponPivotTransform != null ? WeaponPivotTransform : AttackOrigin;
+
+                // 从 PlayerController 的序列化字段注入到 PlayerCombat
+                if (PlayerCombat.weaponInventory == null || PlayerCombat.weaponInventory.Count == 0)
+                    PlayerCombat.weaponInventory = WeaponInventory;
+                if (PlayerCombat.currentWeapon == null)
+                    PlayerCombat.currentWeapon = CurrentWeapon;
+                if (swingCurve != null && PlayerCombat.swingCurve.keys.Length == 0)
+                    PlayerCombat.swingCurve = swingCurve;
+                if (PlayerCombat.swingDuration <= 0)
+                    PlayerCombat.swingDuration = swingDuration;
+                if (PlayerCombat.maxSwingAngle <= 0)
+                    PlayerCombat.maxSwingAngle = maxSwingAngle;
+            }
+
+            // 注入 VFX 预制体到 PLayerEffect
+            if (PlayerVFX != null)
+            {
+                if (PlayerVFX.JumpDustPrefab == null) PlayerVFX.JumpDustPrefab = JumpDustPrefab;
+                if (PlayerVFX.LandDustPrefab == null) PlayerVFX.LandDustPrefab = LandDustPrefab;
+            }
+
+            // 预创建状态实例
+            innerIdleState = new InnerIdleState(this);
+            innerMoveState = new InnerMoveState(this);
+            innerJumpState = new InnerJumpState(this);
+            innerFallState = new InnerFallState(this);
+            innerDashState = new InnerDashState(this);
+            innerAttackState = new InnerAttackState(this);
+            innerWallSlideState = new InnerWallSlideState(this);
+            innerWallJumpState = new InnerWallJumpState(this);
+        }
+
+        void Start()
+        {
+            if (SpriteRenderer != null) SpriteRenderer.sortingOrder = 10;
+            InitializeInnerFSM();
+        }
+
+        void Update()
+        {
+            if (PlayerHealth != null && PlayerHealth.IsHurting) return;
+
+            // 1. 输入
+            if (PlayerMovement == null || PlayerInput == null) return;
+            bool grounded = PlayerMovement.CheckGrounded();
+            PlayerInput.Tick(grounded);
+
+
+            // 2. 切换武器
+            if (PlayerInput != null && PlayerInput.SwitchWeaponDown)
+                PlayerCombat?.SwitchWeapon();
+
+            // 3. 状态机
+            RunInnerFSM();
+
+            // 4. Debug
+            if (Input.GetKeyDown(KeyCode.BackQuote)) showDebugInfo = !showDebugInfo;
+        }
+
+        void FixedUpdate()
+        {
+            if (PlayerHealth != null && PlayerHealth.IsHurting) return;
+            RunInnerPhysics();
+        }
+
+        // ==================== 对外接口（给 FSM 状态和外部调用）====================
+
+        public bool CheckGrounded() => PlayerMovement != null && PlayerMovement.CheckGrounded();
+        public bool CheckTouchingWall() => PlayerMovement != null && PlayerMovement.CheckTouchingWall();
+
+        public void SetVelocityX(float x) => PlayerMovement?.SetVelocityX(x);
+        public void SetVelocityY(float y) => PlayerMovement?.SetVelocityY(y);
+        public void SetVelocity(float x, float y) => PlayerMovement?.SetVelocity(x, y);
+        public void CheckFlip() => PlayerMovement?.CheckFlip(InputX);
+        public void Flip() => PlayerMovement?.Flip();
+        public void StartPlatformDrop() => PlayerMovement?.StartPlatformDrop();
+
+        public void SpawnDust(GameObject dustPrefab)
+        {
+            if (dustPrefab == null || GroundCheckPos == null) return;
+            if (PoolManager.Instance == null)
+            {
+                Instantiate(dustPrefab, GroundCheckPos.position, Quaternion.identity);
                 return;
             }
-
-            // 跳跃
-            if (Input.GetButtonDown("Jump") && core.CheckGrounded())
-                core.SwitchInnerState(core.innerJumpState);
-                
-            // 攻击
-            if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1"))
-                core.SwitchInnerState(core.innerAttackState);
-
-            // 冲刺
-            if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
-                core.SwitchInnerState(core.innerDashState);
-
-            // 下落
-            if (!core.CheckGrounded())
-                core.SwitchInnerState(core.innerFallState);
+            PoolType poolType = dustPrefab == JumpDustPrefab ? PoolType.JumpDust : PoolType.LandDust;
+            GameObject dust = PoolManager.Instance.Spawn(poolType, GroundCheckPos.position, Quaternion.identity);
+            if (dust != null)
+                PoolManager.Instance.ReturnAfterDelay(poolType, dust, 1f);
+            else
+                Instantiate(dustPrefab, GroundCheckPos.position, Quaternion.identity);
         }
-    }
 
-    /// <summary>
-    /// 跳跃状态：处理上升过程、空中移动、二段跳（如需）、贴墙判定
-    /// </summary>
-    public class InnerJumpState : BaseState
-    {
-        public InnerJumpState(PlayerController core) : base(core) { }
-        public override void Enter()
-        {
-            base.Enter();
-            core.SetVelocityY(core.jumpForce);
-            core.RigidBody.gravityScale = core.RisingGravityScale; // 上升重力（较小，手感更轻盈）
-            if(core.Animator != null) core.Animator.CrossFade("Jump", 0.1f);
-            core.SpawnDust(core.JumpDustPrefab);
-        }
-        public override void LogicUpdate()
-        {
-            core.CheckFlip();
-            core.SetVelocityX(core.moveSpeed * core.InputX);
+        public bool CanAttack() => PlayerCombat != null && PlayerCombat.CanAttack();
+        public void Attack() => PlayerCombat?.Attack();
+        public void SwitchWeapon() => PlayerCombat?.SwitchWeapon();
 
-            // 速度小于0转为下落
-            if (core.RigidBody.velocity.y < 0) core.SwitchInnerState(core.innerFallState);
-            
-            // 贴墙检测 -> 切换滑墙
-            if (core.CheckTouchingWall() && core.InputX == core.transform.localScale.x)
+        // ==================== Gizmos ====================
+
+        void OnDrawGizmos()
+        {
+            if (GroundCheckPos != null)
             {
-                 core.SwitchInnerState(core.innerWallSlideState);
+                Gizmos.color = Color.red;
+                Gizmos.DrawWireSphere(GroundCheckPos.position, 0.3f);
             }
-
-            // 空中冲刺
-            if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
-                core.SwitchInnerState(core.innerDashState);
-                
-            // 空中攻击
-            if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1"))
-                core.SwitchInnerState(core.innerAttackState);
-        }
-    }
-
-    /// <summary>
-    /// 下落状态：处理自然下落、落地检测、土狼时间跳跃
-    /// </summary>
-    public class InnerFallState : BaseState
-    {
-        public InnerFallState(PlayerController core) : base(core) { }
-        public override void Enter()
-        {
-            base.Enter();
-            core.RigidBody.gravityScale = core.FallingGravityScale; // 下落重力
-            if(core.Animator != null) core.Animator.CrossFade("Fall", 0.1f);
-        }
-        public override void LogicUpdate()
-        {
-            core.CheckFlip();
-            core.SetVelocityX(core.moveSpeed * core.InputX);
-
-            // 落地检测
-            if (core.CheckGrounded())
+            if (AttackOrigin != null && PlayerCombat != null && PlayerCombat.currentWeapon != null)
             {
-                core.SpawnDust(core.LandDustPrefab);
-                core.SwitchInnerState(core.innerIdleState);
-            }
-            
-            // 贴墙检测
-            if (core.CheckTouchingWall() && core.InputX == core.transform.localScale.x)
-            {
-                 core.SwitchInnerState(core.innerWallSlideState);
-            }
-
-            // 土狼时间 (Coyote Time)：允许离开平台一小段时间内仍可跳跃
-            if (core.CoyoteTimeCounter > 0 && Input.GetButtonDown("Jump"))
-                 core.SwitchInnerState(core.innerJumpState);
-
-            // 空中冲刺
-            if (Input.GetKeyDown(KeyCode.LeftShift) && core.dashCooldownTimer <= 0)
-                core.SwitchInnerState(core.innerDashState);
-
-            // 空中攻击
-            if (Input.GetKeyDown(KeyCode.K) || Input.GetButtonDown("Fire1"))
-                core.SwitchInnerState(core.innerAttackState);
-        }
-    }
-
-    /// <summary>
-    /// 冲刺状态：忽略重力、快速移动、无敌帧（可选）
-    /// </summary>
-    public class InnerDashState : BaseState
-    {
-        public InnerDashState(PlayerController core) : base(core) { }
-        public override void Enter()
-        {
-            base.Enter();
-            if(core.Animator != null) core.Animator.CrossFade("Dash", 0f); 
-            core.dashCooldownTimer = core.dashCooldown; 
-            int dir = core.transform.localScale.x > 0 ? 1 : -1;
-            core.SetVelocity(dir * core.dashSpeed, 0); // 冲刺时Y轴速度清零
-            core.RigidBody.gravityScale = 0; // 关闭重力
-        }
-        public override void Exit()
-        {
-            core.RigidBody.gravityScale = core.FallingGravityScale; // 恢复重力
-            core.SetVelocityX(0); // 冲刺结束稍微停顿一下（可选）
-        }
-        public override void LogicUpdate()
-        {
-            if (Time.time >= startTime + core.dashTime)
-                core.SwitchInnerState(core.innerIdleState);
-        }
-    }
-
-    /// <summary>
-    /// 攻击状态：调用 WeaponData 执行具体逻辑，处理硬直时间
-    /// </summary>
-    public class InnerAttackState : BaseState
-    {
-        public InnerAttackState(PlayerController core) : base(core) { }
-        public override void Enter()
-        {
-            base.Enter();
-            // 地面攻击时静止，空中攻击保留惯性
-            if (core.CheckGrounded())
-            {
-                 core.SetVelocityX(0);
-            }
-            
-            if (core.CurrentWeapon != null)
-            {
-                core.CurrentWeapon.Attack(core);
-                // 如果是近战，播放挥剑曲线动画
-                if (core.CurrentWeapon.useMeleeSwing)
-                     core.StartSwing(); // 用 StartSwing 避免协程堆积
+                Gizmos.color = Color.blue;
+                Gizmos.DrawWireSphere(AttackOrigin.position, PlayerCombat.currentWeapon.attackRange);
             }
         }
-        public override void LogicUpdate()
+
+        // ==================== 内部 FSM ====================
+
+        public abstract class BaseState
         {
-            // 攻击动作结束判定
-            if (Time.time >= startTime + core.swingDuration + 0.1f) 
+            protected PlayerController core;
+            protected float startTime;
+            public BaseState(PlayerController _core) => core = _core;
+            public virtual void Enter()
             {
+                startTime = Time.time;
+                if (core.showDebugInfo) Debug.Log($"Enter State: {this.GetType().Name}");
+            }
+            public virtual void Exit() { }
+            public virtual void LogicUpdate() { }
+            public virtual void PhysicsUpdate() { }
+        }
+
+        public class InnerIdleState : BaseState
+        {
+            public InnerIdleState(PlayerController core) : base(core) { }
+            public override void Enter()
+            {
+                base.Enter();
+                core.SetVelocityX(0);
+                if (core.PlayerMovement != null)
+                    core.RigidBody.gravityScale = core.PlayerMovement.fallingGravityScale;
+                core.Animator?.CrossFade("Idle", 0.1f);
+            }
+            public override void LogicUpdate()
+            {
+                if (core.InputX != 0) { core.SwitchInnerState(core.innerMoveState); return; }
+                if (core.PlayerInput.VerticalInput < 0 && core.PlayerInput.JumpDown)
+                { core.StartPlatformDrop(); return; }
+                if (core.PlayerInput.JumpDown && core.CheckGrounded())
+                {
+                    core.SwitchInnerState(core.innerJumpState); return;
+                }
+                if (core.PlayerInput.AttackDown)
+                { core.SwitchInnerState(core.innerAttackState); return; }
+                if (core.PlayerInput.DashDown && core.PlayerMovement.DashCooldownTimer <= 0)
+                { core.SwitchInnerState(core.innerDashState); return; }
+                if (!core.CheckGrounded())
+                { core.SwitchInnerState(core.innerFallState); }
+            }
+        }
+
+        public class InnerMoveState : BaseState
+        {
+            public InnerMoveState(PlayerController core) : base(core) { }
+            public override void Enter()
+            {
+                base.Enter();
+                if (core.PlayerMovement != null)
+                    core.RigidBody.gravityScale = core.PlayerMovement.fallingGravityScale;
+                core.Animator?.CrossFade("Move", 0.1f);
+            }
+            public override void LogicUpdate()
+            {
+                core.CheckFlip();
+                core.SetVelocityX(core.PlayerMovement.moveSpeed * core.InputX);
+                if (core.InputX == 0) { core.SwitchInnerState(core.innerIdleState); return; }
+                if (core.PlayerInput.VerticalInput < 0 && core.PlayerInput.JumpDown)
+                { core.StartPlatformDrop(); return; }
+                if (core.PlayerInput.JumpDown && core.CheckGrounded())
+                { core.SwitchInnerState(core.innerJumpState); return; }
+                if (core.PlayerInput.AttackDown)
+                { core.SwitchInnerState(core.innerAttackState); return; }
+                if (core.PlayerInput.DashDown && core.PlayerMovement.DashCooldownTimer <= 0)
+                { core.SwitchInnerState(core.innerDashState); return; }
+                if (!core.CheckGrounded())
+                { core.SwitchInnerState(core.innerFallState); }
+            }
+        }
+
+        public class InnerJumpState : BaseState
+        {
+            public InnerJumpState(PlayerController core) : base(core) { }
+            public override void Enter()
+            {
+                base.Enter();
+                core.SetVelocityY(core.PlayerMovement.jumpForce);
+                if (core.PlayerMovement != null)
+                    core.RigidBody.gravityScale = core.PlayerMovement.risingGravityScale;
+                core.Animator?.CrossFade("Jump", 0.1f);
+                core.SpawnDust(core.PlayerVFX?.JumpDustPrefab);
+            }
+            public override void LogicUpdate()
+            {
+                core.CheckFlip();
+                core.SetVelocityX(core.PlayerMovement.moveSpeed * core.InputX);
+                if (core.RigidBody.velocity.y < 0)
+                { core.SwitchInnerState(core.innerFallState); return; }
+                if (core.CheckTouchingWall() && core.InputX == core.transform.localScale.x)
+                { core.SwitchInnerState(core.innerWallSlideState); return; }
+                if (core.PlayerInput.DashDown && core.PlayerMovement.DashCooldownTimer <= 0)
+                { core.SwitchInnerState(core.innerDashState); }
+                if (core.PlayerInput.AttackDown)
+                { core.SwitchInnerState(core.innerAttackState); }
+            }
+        }
+
+        public class InnerFallState : BaseState
+        {
+            public InnerFallState(PlayerController core) : base(core) { }
+            public override void Enter()
+            {
+                base.Enter();
+                if (core.PlayerMovement != null)
+                    core.RigidBody.gravityScale = core.PlayerMovement.fallingGravityScale;
+                core.Animator?.CrossFade("Fall", 0.1f);
+            }
+            public override void LogicUpdate()
+            {
+                core.CheckFlip();
+                core.SetVelocityX(core.PlayerMovement.moveSpeed * core.InputX);
                 if (core.CheckGrounded())
+                {
+                    core.SpawnDust(core.PlayerVFX?.LandDustPrefab);
                     core.SwitchInnerState(core.innerIdleState);
-                else
+                    return;
+                }
+                if (core.CheckTouchingWall() && core.InputX == core.transform.localScale.x)
+                { core.SwitchInnerState(core.innerWallSlideState); return; }
+                if (core.CoyoteTimeCounter > 0 && core.PlayerInput.JumpDown)
+                { core.SwitchInnerState(core.innerJumpState); return; }
+                if (core.PlayerInput.DashDown && core.PlayerMovement.DashCooldownTimer <= 0)
+                { core.SwitchInnerState(core.innerDashState); }
+                if (core.PlayerInput.AttackDown)
+                { core.SwitchInnerState(core.innerAttackState); }
+            }
+        }
+
+        public class InnerDashState : BaseState
+        {
+            public InnerDashState(PlayerController core) : base(core) { }
+            public override void Enter()
+            {
+                base.Enter();
+                core.Animator?.CrossFade("Dash", 0f);
+                core.PlayerMovement.DashCooldownTimer = core.PlayerMovement.dashCooldown;
+                int dir = core.transform.localScale.x > 0 ? 1 : -1;
+                core.SetVelocity(dir * core.PlayerMovement.dashSpeed, 0);
+                core.RigidBody.gravityScale = 0;
+            }
+            public override void Exit()
+            {
+                if (core.PlayerMovement != null)
+                    core.RigidBody.gravityScale = core.PlayerMovement.fallingGravityScale;
+                core.SetVelocityX(0);
+            }
+            public override void LogicUpdate()
+            {
+                if (Time.time >= startTime + core.PlayerMovement.dashTime)
+                    core.SwitchInnerState(core.innerIdleState);
+            }
+        }
+
+        public class InnerAttackState : BaseState
+        {
+            public InnerAttackState(PlayerController core) : base(core) { }
+            public override void Enter()
+            {
+                base.Enter();
+                if (core.CheckGrounded()) core.SetVelocityX(0);
+                core.Attack();
+            }
+            public override void LogicUpdate()
+            {
+                if (Time.time >= startTime + core.PlayerCombat.swingDuration + 0.1f)
+                {
+                    core.SwitchInnerState(core.CheckGrounded() ? core.innerIdleState : core.innerFallState);
+                }
+            }
+        }
+
+        public class InnerWallSlideState : BaseState
+        {
+            public InnerWallSlideState(PlayerController core) : base(core) { }
+            public override void Enter()
+            {
+                base.Enter();
+                core.Animator?.CrossFade("Fall", 0.1f);
+            }
+            public override void LogicUpdate()
+            {
+                if (core.PlayerInput.JumpDown)
+                { core.SwitchInnerState(core.innerWallJumpState); return; }
+                bool movingAway = core.InputX != 0 && core.InputX != core.transform.localScale.x;
+                if (!core.CheckTouchingWall() || core.CheckGrounded() || movingAway)
+                {
+                    core.SwitchInnerState(core.CheckGrounded() ? core.innerIdleState : core.innerFallState);
+                    return;
+                }
+                core.SetVelocity(core.RigidBody.velocity.x, -core.PlayerMovement.wallSlideSpeed);
+            }
+        }
+
+        public class InnerWallJumpState : BaseState
+        {
+            public InnerWallJumpState(PlayerController core) : base(core) { }
+            public override void Enter()
+            {
+                base.Enter();
+                core.Animator?.CrossFade("Jump", 0.1f);
+                float jumpDir = -core.transform.localScale.x;
+                core.RigidBody.velocity = Vector2.zero;
+                core.RigidBody.AddForce(new Vector2(
+                    core.PlayerMovement.wallJumpForce.x * jumpDir,
+                    core.PlayerMovement.wallJumpForce.y), ForceMode2D.Impulse);
+                core.Flip();
+            }
+            public override void LogicUpdate()
+            {
+                if (Time.time >= startTime + core.PlayerMovement.wallJumpTime)
                     core.SwitchInnerState(core.innerFallState);
             }
         }
-    }
 
-    /// <summary>
-    /// 滑墙状态：处理贴墙下滑、蹬墙跳
-    /// </summary>
-    public class InnerWallSlideState : BaseState
-    {
-        public InnerWallSlideState(PlayerController core) : base(core) { }
-        public override void Enter()
+        // ==================== FSM 控制器 ====================
+
+        public void InitializeInnerFSM() => SwitchInnerState(innerIdleState);
+
+        public void SwitchInnerState(BaseState newState)
         {
-            base.Enter();
-            if(core.Animator != null) core.Animator.CrossFade("Fall", 0.1f); 
+            currentInnerState?.Exit();
+            currentInnerState = newState;
+            currentInnerState.Enter();
         }
-        public override void LogicUpdate()
+
+        public void RunInnerFSM()
         {
-            // 蹬墙跳
-            if (Input.GetButtonDown("Jump"))
-            {
-                core.SwitchInnerState(core.innerWallJumpState);
-                return;
-            }
-
-            // 脱离墙壁判定：输入反向或不再贴墙
-            bool isMovingAway = core.InputX != 0 && core.InputX != core.transform.localScale.x;
-            
-            if (!core.CheckTouchingWall() || core.CheckGrounded() || isMovingAway)
-            {
-                if(core.CheckGrounded()) core.SwitchInnerState(core.innerIdleState);
-                else core.SwitchInnerState(core.innerFallState);
-                return;
-            }
-
-            // 施加滑墙摩擦力（匀速下滑）
-            core.SetVelocity(core.RigidBody.velocity.x, -core.wallSlideSpeed);
+            if (PlayerMovement != null && PlayerMovement.DashCooldownTimer > 0)
+                PlayerMovement.DashCooldownTimer -= Time.deltaTime;
+            currentInnerState?.LogicUpdate();
         }
-    }
 
-    /// <summary>
-    /// 蹬墙跳状态：施加反向力，短暂锁定输入
-    /// </summary>
-    public class InnerWallJumpState : BaseState
-    {
-        public InnerWallJumpState(PlayerController core) : base(core) { }
-        public override void Enter()
+        public void RunInnerPhysics()
         {
-            base.Enter();
-            if(core.Animator != null) core.Animator.CrossFade("Jump", 0.1f);
-            
-            float jumpDir = -core.transform.localScale.x; // 反向跳跃
-            
-            Vector2 force = new Vector2(core.wallJumpForce.x * jumpDir, core.wallJumpForce.y);
-            core.RigidBody.velocity = Vector2.zero; 
-            core.RigidBody.AddForce(force, ForceMode2D.Impulse);
-            
-            core.Flip(); // 立即转向
+            currentInnerState?.PhysicsUpdate();
         }
-        public override void LogicUpdate()
-        {
-            // 锁定时间结束，转为下落
-            if (Time.time >= startTime + core.wallJumpTime)
-            {
-                core.SwitchInnerState(core.innerFallState);
-            }
-        }
-    }
-
-    // ============================================================================
-    //  Helper Methods (通用辅助方法)
-    // ============================================================================
-    private BaseState currentInnerState;
-    public float dashCooldownTimer; 
-
-    public void InitializeInnerFSM()
-    {
-        SwitchInnerState(innerIdleState);
-    }
-
-    public void SwitchInnerState(BaseState newState)
-    {
-        currentInnerState?.Exit();
-        currentInnerState = newState;
-        currentInnerState.Enter();
-        currentStateName = newState.GetType().Name; 
-        EventCenter.Instance?.Broadcast(EventCenter.EventType.PlayerStateChange.ToString());
-    }
-
-    public void RunInnerFSM()
-    {
-        if(dashCooldownTimer > 0) dashCooldownTimer -= Time.deltaTime;
-        currentInnerState?.LogicUpdate();
-    }
-    
-    public void RunInnerPhysics()
-    {
-        currentInnerState?.PhysicsUpdate();
-    }
-
-    private void SetVelocityX(float x) 
-    {
-        WorkVector.Set(x, RigidBody.velocity.y);
-        RigidBody.velocity = WorkVector;
-    }
-
-    private void SetVelocityY(float y)
-    {
-        WorkVector.Set(RigidBody.velocity.x, y);
-        RigidBody.velocity = WorkVector;
-    }
-
-    private void SetVelocity(float x, float y)
-    {
-        WorkVector.Set(x, y);
-        RigidBody.velocity = WorkVector;
-    }
-    
-    private void CheckFlip()
-    {
-        if (InputX > 0 && transform.localScale.x < 0) Flip();
-        else if (InputX < 0 && transform.localScale.x > 0) Flip();
-    }
-
-    private void Flip()
-    {
-        Vector3 scaler = transform.localScale;
-        scaler.x *= -1;
-        transform.localScale = scaler;
     }
 }

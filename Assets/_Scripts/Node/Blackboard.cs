@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 
-public class Blackboard
+namespace AngryBirds.AI.Node
+{
+    public class Blackboard
 {
     private Dictionary<string, object> data = new();
 
@@ -19,4 +21,5 @@ public class Blackboard
     {
         data.Remove(key);
     }
+}
 }

@@ -1,7 +1,13 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "New Ranged Weapon", menuName = "Combat/Ranged Weapon")]
-public class RangedWeapon : WeaponData
+using AngryBirds.Loading;
+using AngryBirds.Core;
+using AngryBirds.Player;
+
+namespace AngryBirds.Combat
+{
+    [CreateAssetMenu(fileName = "New Ranged Weapon", menuName = "Combat/Ranged Weapon")]
+    public class RangedWeapon : WeaponData
 {
     [Header("Projectile Settings")]
     public GameObject projectilePrefab;
@@ -10,6 +16,9 @@ public class RangedWeapon : WeaponData
 
     public override void Attack(PlayerController holder)
     {
+        if (projectilePrefab == null)
+            projectilePrefab = ProjectileCache.FireballPrefab;
+
         if (projectilePrefab == null)
         {
             Debug.LogError("Projectile Prefab is missing on Ranged Weapon!");
@@ -26,9 +35,7 @@ public class RangedWeapon : WeaponData
         Quaternion rotation = facingDir > 0 ? Quaternion.identity : Quaternion.Euler(0, 180, 0);
 
         // Try to get projectile from pool, fallback to Instantiate
-        SamplePool projectilePool = null;
-        var poolObj = GameObject.Find("ProjectilePool");
-        if (poolObj != null) projectilePool = poolObj.GetComponent<SamplePool>();
+        SamplePool projectilePool = PoolManager.Instance?.GetPool(PoolType.Projectile);
 
         GameObject projObj;
         Projectile projScript = null;
@@ -68,4 +75,4 @@ public class RangedWeapon : WeaponData
             if (projectilePool != null) projScript.AssignPool(projectilePool);
         }
     }
-}
+}}

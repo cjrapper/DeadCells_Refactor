@@ -230,12 +230,12 @@ public class LevelDesigner
             if (go != null) { Undo.RecordObject(go, "Rename"); go.name = kv.Value; }
         }
 
-        // ABManager
-        if (Object.FindObjectOfType<ABManager>() == null)
+        // AddressablesLoader (替代已删除的 ABManager)
+        if (Object.FindObjectOfType<AngryBirds.Loading.AddressablesLoader>() == null)
         {
             GameObject gm = GameObject.Find("GameManager");
             if (gm == null) { gm = new GameObject("GameManager"); Undo.RegisterCreatedObjectUndo(gm, "Create GameManager"); }
-            Undo.AddComponent<ABManager>(gm);
+            Undo.AddComponent<AngryBirds.Loading.AddressablesLoader>(gm);
         }
     }
 

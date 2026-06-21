@@ -1,7 +1,9 @@
 using UnityEngine;
 using System.Collections;
 
-public class HitStop : MonoBehaviour
+namespace AngryBirds.Core
+{
+    public class HitStop : MonoBehaviour
 {
     // Singleton instance for global access
     private static HitStop instance;
@@ -51,4 +53,5 @@ public class HitStop : MonoBehaviour
 
         isWaiting = false;
     }
+}
 }

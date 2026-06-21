@@ -1,4 +1,6 @@
-public class EnemyStateMachine
+namespace AngryBirds.Enemy
+{
+    public class EnemyStateMachine
 {
     //记住当前状态
     public EnemyState CurrentState{ get; private set; }
@@ -16,4 +18,5 @@ public class EnemyStateMachine
         CurrentState = newState;
         CurrentState.Enter();
     }
+}
 }

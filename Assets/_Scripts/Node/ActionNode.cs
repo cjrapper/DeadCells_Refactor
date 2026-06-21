@@ -2,17 +2,20 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ActionNode : BehaviourNode
+namespace AngryBirds.AI.Node
 {
-    private Func<NodeState> action;
-
-    public ActionNode(Func<NodeState> action)
+    public class ActionNode : BehaviourNode
     {
-        this.action = action;
-    }
+        private Func<NodeState> action;
 
-    public override NodeState Evaluate()
-    {
-        return action();
+        public ActionNode(Func<NodeState> action)
+        {
+            this.action = action;
+        }
+
+        protected override NodeState Evaluate()
+        {
+            return action();
+        }
     }
 }

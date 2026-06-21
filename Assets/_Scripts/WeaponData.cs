@@ -1,6 +1,10 @@
 using UnityEngine;
 
-public abstract class WeaponData : ScriptableObject
+using AngryBirds.Player;
+
+namespace AngryBirds.Combat
+{
+    public abstract class WeaponData : ScriptableObject
 {
     [Header("Weapon Stats")]
     public string weaponName;
@@ -11,4 +15,5 @@ public abstract class WeaponData : ScriptableObject
     public bool useMeleeSwing = false; // Does this weapon use the melee swing animation?
 
     public abstract void Attack(PlayerController holder);
+    }
 }

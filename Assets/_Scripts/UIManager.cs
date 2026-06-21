@@ -3,7 +3,11 @@ using UnityEngine.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class UIManager : MonoBehaviour
+using AngryBirds.Player;
+
+namespace AngryBirds.Core
+{
+    public class UIManager : MonoBehaviour
 {
     public static UIManager instance;
     [Header("Health Bar")]
@@ -48,7 +52,7 @@ public class UIManager : MonoBehaviour
     // 重新加载当前场景
     public void RestartGame()
     {
-        PlayerController.RestoreTimeScale();
+        PlayerHealth.RestoreTimeScale();
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
@@ -60,4 +64,4 @@ public class UIManager : MonoBehaviour
         }
     }
 
-}
+}}
