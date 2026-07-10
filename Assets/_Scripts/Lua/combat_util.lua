@@ -1,0 +1,13 @@
+-- ============================================================
+-- 战斗工具函数 - combat_util.lua
+-- 把通用的战斗判定抽到这里，避免每个状态文件里重复写
+--
+-- 你需要实现的函数：
+--   1. CanSeePlayer(enemy)  → 返回 bool（距离+高度差判断）
+--   2. CanAttack(enemy)     → 返回 bool（调 enemy:CanAttack()）
+--   3. DoAttack(enemy)      → 返回 bool（AABB 碰撞检测 + 造成伤害）
+--   4. CalculateDamage(base) → 返回 number（伤害公式：暴击/护甲等）
+--
+-- 用法：其他 Lua 文件里
+--   local combat = require("combat_util")
+--   if combat.CanSeePlayer(enemy) then ... end

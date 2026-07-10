@@ -1,0 +1,20 @@
+-- ============================================================
+-- 追击状态 - chase_state.lua
+-- 
+-- 对外接口（必须实现）：
+--   state.name = "chase"
+--   state.Enter(enemy) / state.Update(enemy) / state.Exit(enemy)
+--
+-- C# Enemy 上可用的额外字段：
+--   enemy.player                 -- 玩家 Transform（可能为 nil）
+--   enemy.player.position        -- 玩家位置
+--   enemy.chaseSpeed             -- 追击速度
+--   enemy.attackRange            -- 攻击范围
+--   enemy:CanAttack()            -- 攻击冷却就绪？
+--   enemy.transform.localScale   -- 用于翻转朝向
+--
+-- 典型逻辑：
+--   1. 玩家为 nil → 返回 "patrol"
+--   2. 距离 > chaseRange → 返回 "patrol"  
+--   3. 距离 < attackRange*1.5 且可攻击 → 返回 "telegraph"
+--   4. 否则 → 向玩家移动 + 翻转朝向，返回 nil

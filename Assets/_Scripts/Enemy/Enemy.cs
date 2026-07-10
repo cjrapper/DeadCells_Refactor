@@ -40,6 +40,7 @@ namespace AngryBirds.Enemy
         public GameObject alertSign;
 
         // 状态机
+        [HideInInspector] public bool useLuaFSM = false;  // 如果挂载了 EnemyLuaBridge，由 Lua 接管
         public EnemyStateMachine StateMachine { get; private set; }
         public PatrolState patrolState { get; private set; }
         public ChaseState chaseState { get; private set; }
@@ -76,12 +77,14 @@ namespace AngryBirds.Enemy
 
         protected virtual void Update()
         {
-            StateMachine.CurrentState.LogicUpdate();
+            if (!useLuaFSM)
+                StateMachine.CurrentState.LogicUpdate();
         }
 
         protected virtual void FixedUpdate()
         {
-            StateMachine.CurrentState.PhysicsUpdate();
+            if (!useLuaFSM)
+                StateMachine.CurrentState.PhysicsUpdate();
         }
 
         // 视觉更新虚方法，子类重写以实现各自的动画表现

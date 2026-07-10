@@ -1,0 +1,10 @@
+-- ============================================================
+-- 敌人状态机入口 - enemy_fsm.lua
+-- 你需要实现：状态切换、每帧更新、C# Enemy对象操作
+-- ============================================================
+-- 提示：
+--   1. 每个状态文件 return 一个 table，包含 name, Enter, Update, Exit
+--   2. 用 require("patrol_state") 加载状态
+--   3. C# 对象用 enemy.someField 访问，调方法用 enemy:Method()
+--   4. CS.UnityEngine.Time.deltaTime 获取 deltaTime
+--   5. CS.UnityEngine.Vector2(x, y) 创建 Vector2

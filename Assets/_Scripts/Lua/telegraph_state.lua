@@ -1,0 +1,17 @@
+-- ============================================================
+-- 预警状态 - telegraph_state.lua
+-- 
+-- 对外接口（必须实现）：
+--   state.name = "telegraph"
+--   state.Enter(enemy) / state.Update(enemy) / state.Exit(enemy)
+--
+-- C# Enemy 上可用的额外字段：
+--   enemy.windupTime            -- 预警持续时间（秒）
+--   enemy.alertSign             -- 警示标志 GameObject（可能为 nil）
+--   enemy.alertSign:SetActive(bool)  -- 显示/隐藏
+--   enemy.rb.velocity           -- 减速到 0
+--
+-- 典型逻辑：
+--   1. Enter: 显示 alertSign，减速
+--   2. Update: 倒计时，到时间 → 返回 "attack"
+--   3. Exit: 隐藏 alertSign

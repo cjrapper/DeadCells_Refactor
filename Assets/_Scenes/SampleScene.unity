@@ -3907,6 +3907,11 @@ GameObject:
   - component: {fileID: 1784005150}
   - component: {fileID: 1784005151}
   - component: {fileID: 1784005152}
+  - component: {fileID: 1784005153}
+  - component: {fileID: 1784005156}
+  - component: {fileID: 1784005155}
+  - component: {fileID: 1784005154}
+  - component: {fileID: 1784005157}
   m_Layer: 9
   m_Name: Player
   m_TagString: Player
@@ -4127,28 +4132,7 @@ MonoBehaviour:
   WallCheckPos: {fileID: 1509453667}
   AttackOrigin: {fileID: 279894919}
   WeaponPivotTransform: {fileID: 1565603562}
-  maxHealth: 100
-  moveSpeed: 5
-  jumpForce: 8
-  MaxJumpCount: 1
-  RisingGravityScale: 1
-  FallingGravityScale: 2.5
-  JumpBufferDuration: 0.3
-  CoyoteDuration: 0.15
-  noFrictionMaterial: {fileID: 6200000, guid: 51824288cf5fb4042befd8580bb1227c, type: 2}
-  CheckRadius: 0.3
-  GroundLayer:
-    serializedVersion: 2
-    m_Bits: 64
-  WallLayer:
-    serializedVersion: 2
-    m_Bits: 64
-  OneWayPlatformLayer:
-    serializedVersion: 2
-    m_Bits: 256
-  WeaponInventory:
-  - {fileID: 11400000, guid: 8edc2531920a78d43a37b4d6877dbec9, type: 2}
-  - {fileID: 11400000, guid: 5f06c4990bd233348a3e02ac59115b3a, type: 2}
+  WeaponInventory: []
   CurrentWeapon: {fileID: 11400000, guid: 8edc2531920a78d43a37b4d6877dbec9, type: 2}
   swingCurve:
     serializedVersion: 2
@@ -4163,17 +4147,8 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 0.2
+      time: 1
       value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 0.99722224
-      value: 0.007861587
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -4185,19 +4160,30 @@ MonoBehaviour:
     m_RotationOrder: 4
   swingDuration: 0.25
   maxSwingAngle: 120
+  JumpDustPrefab: {fileID: 0}
+  LandDustPrefab: {fileID: 0}
+  CheckRadius: 0.3
+  GroundLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  WallLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  OneWayPlatformLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  noFrictionMaterial: {fileID: 6200000, guid: 51824288cf5fb4042befd8580bb1227c, type: 2}
+  moveSpeed: 5
+  jumpForce: 8
+  RisingGravityScale: 1
+  FallingGravityScale: 2.5
   dashSpeed: 15
   dashTime: 0.2
   dashCooldown: 1
-  HitEffectPrefab: {fileID: 1530149618251850255, guid: 04c87a70d26dc2a45881b2424675ac6f, type: 3}
-  ImpulseSource: {fileID: 1784005150}
-  JumpDustPrefab: {fileID: 2062184490798064262, guid: cd1f1b30f2a29794386db87084961268, type: 3}
-  LandDustPrefab: {fileID: 3706504530610183195, guid: c77f1b0319359694c8d907781d9f788d, type: 3}
   wallSlideSpeed: 2
   wallJumpForce: {x: 10, y: 12}
   wallJumpTime: 0.2
   showDebugInfo: 1
-  currentStateName: 
-  dashCooldownTimer: 0
 --- !u!114 &1784005152
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4211,8 +4197,127 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ghostPrefab: {fileID: 4092257432547521519, guid: 6f35770853d1b7941b21db673511ae32, type: 3}
-  ghostPool: {fileID: 1729749464}
+  JumpDustPrefab: {fileID: 0}
+  LandDustPrefab: {fileID: 0}
   ghostInterval: 0.1
+--- !u!114 &1784005153
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1784005144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce46f36a6d84e3442b84fe169047314a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  groundCheckPos: {fileID: 990693482}
+  wallCheckPos: {fileID: 1509453667}
+  moveSpeed: 5
+  jumpForce: 12
+  risingGravityScale: 1
+  fallingGravityScale: 2.5
+  noFrictionMaterial: {fileID: 6200000, guid: 51824288cf5fb4042befd8580bb1227c, type: 2}
+  checkRadius: 0.3
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  oneWayPlatformLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  wallSlideSpeed: 2
+  wallJumpForce: {x: 10, y: 12}
+  wallJumpTime: 0.2
+  dashSpeed: 15
+  dashTime: 0.2
+  dashCooldown: 1
+--- !u!114 &1784005154
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1784005144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ed0b11850145c4995dd76170bb2500, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1784005155
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1784005144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ecf69ad16d1dda41b7eaa0326797406, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHealth: 100
+  hitEffectPrefab: {fileID: 1530149618251850255, guid: 04c87a70d26dc2a45881b2424675ac6f, type: 3}
+  impulseSource: {fileID: 1784005150}
+--- !u!114 &1784005156
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1784005144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0b44154539b45c47936df55e18da1e3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  weaponInventory: []
+  currentWeapon: {fileID: 11400000, guid: 8edc2531920a78d43a37b4d6877dbec9, type: 2}
+  swingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  swingDuration: 0.25
+  maxSwingAngle: 120
+  attackOrigin: {fileID: 279894919}
+  weaponPivot: {fileID: 708413478}
+--- !u!114 &1784005157
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1784005144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a82963666ad33d44783b506f6490b680, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  jumpBufferDuration: 0.2
+  coyoteDuration: 0.1
 --- !u!1 &1891115699
 GameObject:
   m_ObjectHideFlags: 0
