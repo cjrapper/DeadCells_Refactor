@@ -37,35 +37,9 @@ namespace DeadCells.Player
         public Transform AttackOrigin;
         public Transform WeaponPivotTransform;
 
-        [Header("Combat — 保留在 PlayerController 以兼容场景序列化，Awake 注入到 PlayerCombat")]
+        [Header("Combat")]
         public List<DeadCells.Combat.WeaponData> WeaponInventory;
         public DeadCells.Combat.WeaponData CurrentWeapon;
-        public AnimationCurve swingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
-        public float swingDuration = 0.25f;
-        public float maxSwingAngle = 120f;
-
-        [Header("VFX — 保留以兼容场景序列化")]
-        public GameObject JumpDustPrefab;
-        public GameObject LandDustPrefab;
-
-        [Header("Physics — 保留以注入 PlayerMovement")]
-        public float CheckRadius = 0.3f;
-        public LayerMask GroundLayer;
-        public LayerMask WallLayer;
-        public LayerMask OneWayPlatformLayer;
-        public PhysicsMaterial2D noFrictionMaterial;
-
-        [Header("Movement — 保留以注入 PlayerMovement")]
-        public float moveSpeed = 5f;
-        public float jumpForce = 2f;
-        public float RisingGravityScale = 1f;
-        public float FallingGravityScale = 2.5f;
-        public float dashSpeed = 15f;
-        public float dashTime = 0.2f;
-        public float dashCooldown = 1f;
-        public float wallSlideSpeed = 2f;
-        public Vector2 wallJumpForce = new Vector2(10f, 12f);
-        public float wallJumpTime = 0.2f;
 
         [Header("Debug")]
         public bool showDebugInfo = true;
@@ -76,10 +50,8 @@ namespace DeadCells.Player
 
         // ==================== FSM ====================
         private BaseState currentInnerState;
-        private InnerIdleState innerIdleState;
-        private InnerMoveState innerMoveState;
-        private InnerJumpState innerJumpState;
-        private InnerFallState innerFallState;
+        private InnerGroundedState innerGroundedState;
+        private InnerAirborneState innerAirborneState;
         private InnerDashState innerDashState;
         private InnerAttackState innerAttackState;
         private InnerWallSlideState innerWallSlideState;
@@ -103,16 +75,12 @@ namespace DeadCells.Player
             Animator = GetComponentInChildren<Animator>();
             SpriteRenderer = GetComponentInChildren<SpriteRenderer>();
 
-            // 注入地面/墙壁检测参数
+            // 注入位置引用（场景绑定，组件自身无法序列化）
             if (PlayerMovement != null)
             {
                 PlayerMovement.groundCheckPos = GroundCheckPos;
                 PlayerMovement.wallCheckPos = WallCheckPos;
-                PlayerMovement.groundLayer = GroundLayer;
-                PlayerMovement.wallLayer = WallLayer;
-                PlayerMovement.oneWayPlatformLayer = OneWayPlatformLayer;
 
-                // 兜底：如果场景序列化丢失（值为 0），按层名字查找
                 if (PlayerMovement.groundLayer.value == 0)
                 {
                     int layer = LayerMask.NameToLayer("Ground");
@@ -125,24 +93,9 @@ namespace DeadCells.Player
                 }
                 if (PlayerMovement.wallLayer.value == 0)
                 {
-                    int layer = LayerMask.NameToLayer("Ground"); // 项目中 Wall ≈ Ground
+                    int layer = LayerMask.NameToLayer("Ground");
                     if (layer >= 0) PlayerMovement.wallLayer = 1 << layer;
                 }
-                PlayerMovement.checkRadius = CheckRadius;
-                PlayerMovement.noFrictionMaterial = noFrictionMaterial;
-
-
-                // 注入移动参数
-                PlayerMovement.moveSpeed = moveSpeed;
-                PlayerMovement.jumpForce = jumpForce;
-                PlayerMovement.risingGravityScale = RisingGravityScale;
-                PlayerMovement.fallingGravityScale = FallingGravityScale;
-                PlayerMovement.dashSpeed = dashSpeed;
-                PlayerMovement.dashTime = dashTime;
-                PlayerMovement.dashCooldown = dashCooldown;
-                PlayerMovement.wallSlideSpeed = wallSlideSpeed;
-                PlayerMovement.wallJumpForce = wallJumpForce;
-                PlayerMovement.wallJumpTime = wallJumpTime;
             }
 
             // Ghost Pool 注入
@@ -162,26 +115,12 @@ namespace DeadCells.Player
                     PlayerCombat.weaponInventory = WeaponInventory;
                 if (PlayerCombat.currentWeapon == null)
                     PlayerCombat.currentWeapon = CurrentWeapon;
-                if (swingCurve != null && PlayerCombat.swingCurve.keys.Length == 0)
-                    PlayerCombat.swingCurve = swingCurve;
-                if (PlayerCombat.swingDuration <= 0)
-                    PlayerCombat.swingDuration = swingDuration;
-                if (PlayerCombat.maxSwingAngle <= 0)
-                    PlayerCombat.maxSwingAngle = maxSwingAngle;
-            }
 
-            // 注入 VFX 预制体到 PLayerEffect
-            if (PlayerVFX != null)
-            {
-                if (PlayerVFX.JumpDustPrefab == null) PlayerVFX.JumpDustPrefab = JumpDustPrefab;
-                if (PlayerVFX.LandDustPrefab == null) PlayerVFX.LandDustPrefab = LandDustPrefab;
             }
 
             // 预创建状态实例
-            innerIdleState = new InnerIdleState(this);
-            innerMoveState = new InnerMoveState(this);
-            innerJumpState = new InnerJumpState(this);
-            innerFallState = new InnerFallState(this);
+            innerGroundedState = new InnerGroundedState(this);
+            innerAirborneState = new InnerAirborneState(this);
             innerDashState = new InnerDashState(this);
             innerAttackState = new InnerAttackState(this);
             innerWallSlideState = new InnerWallSlideState(this);
@@ -202,7 +141,6 @@ namespace DeadCells.Player
             if (PlayerMovement == null || PlayerInput == null) return;
             bool grounded = PlayerMovement.CheckGrounded();
             PlayerInput.Tick(grounded);
-
 
             // 2. 切换武器
             if (PlayerInput != null && PlayerInput.SwitchWeaponDown)
@@ -241,7 +179,7 @@ namespace DeadCells.Player
                 Instantiate(dustPrefab, GroundCheckPos.position, Quaternion.identity);
                 return;
             }
-            PoolType poolType = dustPrefab == JumpDustPrefab ? PoolType.JumpDust : PoolType.LandDust;
+            PoolType poolType = dustPrefab == PlayerVFX?.JumpDustPrefab ? PoolType.JumpDust : PoolType.LandDust;
             GameObject dust = PoolManager.Instance.Spawn(poolType, GroundCheckPos.position, Quaternion.identity);
             if (dust != null)
                 PoolManager.Instance.ReturnAfterDelay(poolType, dust, 1f);
@@ -286,12 +224,14 @@ namespace DeadCells.Player
             public virtual void PhysicsUpdate() { }
         }
 
-        public class InnerIdleState : BaseState
+        public class InnerGroundedState : BaseState
         {
-            public InnerIdleState(PlayerController core) : base(core) { }
+            private bool wasMoving;
+            public InnerGroundedState(PlayerController core) : base(core) { }
             public override void Enter()
             {
                 base.Enter();
+                wasMoving = false;
                 core.SetVelocityX(0);
                 if (core.PlayerMovement != null)
                     core.RigidBody.gravityScale = core.PlayerMovement.fallingGravityScale;
@@ -299,103 +239,86 @@ namespace DeadCells.Player
             }
             public override void LogicUpdate()
             {
-                if (core.InputX != 0) { core.SwitchInnerState(core.innerMoveState); return; }
+                bool moving = core.InputX != 0;
+                if (moving)
+                {
+                    if (!wasMoving) { wasMoving = true; core.Animator?.CrossFade("Move", 0.1f); }
+                    core.CheckFlip();
+                    core.SetVelocityX(core.PlayerMovement.moveSpeed * core.InputX);
+                }
+                else
+                {
+                    if (wasMoving) { wasMoving = false; core.Animator?.CrossFade("Idle", 0.1f); }
+                    core.SetVelocityX(0);
+                }
                 if (core.PlayerInput.VerticalInput < 0 && core.PlayerInput.JumpDown)
                 { core.StartPlatformDrop(); return; }
-                if (core.PlayerInput.JumpDown && core.CheckGrounded())
+                if (core.PlayerInput.JumpDown)
                 {
-                    core.SwitchInnerState(core.innerJumpState); return;
+                    core.innerAirborneState.MarkJump();
+                    core.SwitchInnerState(core.innerAirborneState);
+                    return;
                 }
                 if (core.PlayerInput.AttackDown)
                 { core.SwitchInnerState(core.innerAttackState); return; }
                 if (core.PlayerInput.DashDown && core.PlayerMovement.DashCooldownTimer <= 0)
                 { core.SwitchInnerState(core.innerDashState); return; }
                 if (!core.CheckGrounded())
-                { core.SwitchInnerState(core.innerFallState); }
+                { core.SwitchInnerState(core.innerAirborneState); }
             }
         }
 
-        public class InnerMoveState : BaseState
+        public class InnerAirborneState : BaseState
         {
-            public InnerMoveState(PlayerController core) : base(core) { }
-            public override void Enter()
+            private bool launchedByJump;
+            public InnerAirborneState(PlayerController core) : base(core) { }
+            public void MarkJump() => launchedByJump = true;
+            public void ApplyJump()
             {
-                base.Enter();
-                if (core.PlayerMovement != null)
-                    core.RigidBody.gravityScale = core.PlayerMovement.fallingGravityScale;
-                core.Animator?.CrossFade("Move", 0.1f);
-            }
-            public override void LogicUpdate()
-            {
-                core.CheckFlip();
-                core.SetVelocityX(core.PlayerMovement.moveSpeed * core.InputX);
-                if (core.InputX == 0) { core.SwitchInnerState(core.innerIdleState); return; }
-                if (core.PlayerInput.VerticalInput < 0 && core.PlayerInput.JumpDown)
-                { core.StartPlatformDrop(); return; }
-                if (core.PlayerInput.JumpDown && core.CheckGrounded())
-                { core.SwitchInnerState(core.innerJumpState); return; }
-                if (core.PlayerInput.AttackDown)
-                { core.SwitchInnerState(core.innerAttackState); return; }
-                if (core.PlayerInput.DashDown && core.PlayerMovement.DashCooldownTimer <= 0)
-                { core.SwitchInnerState(core.innerDashState); return; }
-                if (!core.CheckGrounded())
-                { core.SwitchInnerState(core.innerFallState); }
-            }
-        }
-
-        public class InnerJumpState : BaseState
-        {
-            public InnerJumpState(PlayerController core) : base(core) { }
-            public override void Enter()
-            {
-                base.Enter();
                 core.SetVelocityY(core.PlayerMovement.jumpForce);
-                if (core.PlayerMovement != null)
-                    core.RigidBody.gravityScale = core.PlayerMovement.risingGravityScale;
+                core.RigidBody.gravityScale = core.PlayerMovement.risingGravityScale;
                 core.Animator?.CrossFade("Jump", 0.1f);
                 core.SpawnDust(core.PlayerVFX?.JumpDustPrefab);
             }
-            public override void LogicUpdate()
-            {
-                core.CheckFlip();
-                core.SetVelocityX(core.PlayerMovement.moveSpeed * core.InputX);
-                if (core.RigidBody.velocity.y < 0)
-                { core.SwitchInnerState(core.innerFallState); return; }
-                if (core.CheckTouchingWall() && core.InputX == core.transform.localScale.x)
-                { core.SwitchInnerState(core.innerWallSlideState); return; }
-                if (core.PlayerInput.DashDown && core.PlayerMovement.DashCooldownTimer <= 0)
-                { core.SwitchInnerState(core.innerDashState); }
-                if (core.PlayerInput.AttackDown)
-                { core.SwitchInnerState(core.innerAttackState); }
-            }
-        }
-
-        public class InnerFallState : BaseState
-        {
-            public InnerFallState(PlayerController core) : base(core) { }
             public override void Enter()
             {
                 base.Enter();
-                if (core.PlayerMovement != null)
+                if (launchedByJump)
+                {
+                    launchedByJump = false;
+                    core.SetVelocityY(core.PlayerMovement.jumpForce);
+                    core.RigidBody.gravityScale = core.PlayerMovement.risingGravityScale;
+                    core.Animator?.CrossFade("Jump", 0.1f);
+                    core.SpawnDust(core.PlayerVFX?.JumpDustPrefab);
+                }
+                else
+                {
                     core.RigidBody.gravityScale = core.PlayerMovement.fallingGravityScale;
-                core.Animator?.CrossFade("Fall", 0.1f);
+                    core.Animator?.CrossFade("Fall", 0.1f);
+                }
             }
             public override void LogicUpdate()
             {
                 core.CheckFlip();
                 core.SetVelocityX(core.PlayerMovement.moveSpeed * core.InputX);
+                if (core.RigidBody.velocity.y > 0 &&
+                    core.RigidBody.gravityScale != core.PlayerMovement.risingGravityScale)
+                    core.RigidBody.gravityScale = core.PlayerMovement.risingGravityScale;
+                else if (core.RigidBody.velocity.y < 0 &&
+                         core.RigidBody.gravityScale != core.PlayerMovement.fallingGravityScale)
+                    core.RigidBody.gravityScale = core.PlayerMovement.fallingGravityScale;
                 if (core.CheckGrounded())
                 {
                     core.SpawnDust(core.PlayerVFX?.LandDustPrefab);
-                    core.SwitchInnerState(core.innerIdleState);
+                    core.SwitchInnerState(core.innerGroundedState);
                     return;
                 }
                 if (core.CheckTouchingWall() && core.InputX == core.transform.localScale.x)
                 { core.SwitchInnerState(core.innerWallSlideState); return; }
                 if (core.CoyoteTimeCounter > 0 && core.PlayerInput.JumpDown)
-                { core.SwitchInnerState(core.innerJumpState); return; }
+                { ApplyJump(); return; }
                 if (core.PlayerInput.DashDown && core.PlayerMovement.DashCooldownTimer <= 0)
-                { core.SwitchInnerState(core.innerDashState); }
+                { core.SwitchInnerState(core.innerDashState); return; }
                 if (core.PlayerInput.AttackDown)
                 { core.SwitchInnerState(core.innerAttackState); }
             }
@@ -422,7 +345,7 @@ namespace DeadCells.Player
             public override void LogicUpdate()
             {
                 if (Time.time >= startTime + core.PlayerMovement.dashTime)
-                    core.SwitchInnerState(core.innerIdleState);
+                    core.SwitchInnerState(core.innerGroundedState);
             }
         }
 
@@ -439,7 +362,7 @@ namespace DeadCells.Player
             {
                 if (Time.time >= startTime + core.PlayerCombat.swingDuration + 0.1f)
                 {
-                    core.SwitchInnerState(core.CheckGrounded() ? core.innerIdleState : core.innerFallState);
+                    core.SwitchInnerState(core.CheckGrounded() ? core.innerGroundedState : core.innerAirborneState);
                 }
             }
         }
@@ -459,7 +382,7 @@ namespace DeadCells.Player
                 bool movingAway = core.InputX != 0 && core.InputX != core.transform.localScale.x;
                 if (!core.CheckTouchingWall() || core.CheckGrounded() || movingAway)
                 {
-                    core.SwitchInnerState(core.CheckGrounded() ? core.innerIdleState : core.innerFallState);
+                    core.SwitchInnerState(core.CheckGrounded() ? core.innerGroundedState : core.innerAirborneState);
                     return;
                 }
                 core.SetVelocity(core.RigidBody.velocity.x, -core.PlayerMovement.wallSlideSpeed);
@@ -483,13 +406,13 @@ namespace DeadCells.Player
             public override void LogicUpdate()
             {
                 if (Time.time >= startTime + core.PlayerMovement.wallJumpTime)
-                    core.SwitchInnerState(core.innerFallState);
+                    core.SwitchInnerState(core.innerAirborneState);
             }
         }
 
         // ==================== FSM 控制器 ====================
 
-        public void InitializeInnerFSM() => SwitchInnerState(innerIdleState);
+        public void InitializeInnerFSM() => SwitchInnerState(innerGroundedState);
 
         public void SwitchInnerState(BaseState newState)
         {
