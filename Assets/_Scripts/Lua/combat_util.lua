@@ -1,13 +1,12 @@
 -- ============================================================
 -- 战斗工具函数 - combat_util.lua
--- 把通用的战斗判定抽到这里，避免每个状态文件里重复写
+-- 
+-- 注意：CanSeePlayer()、CanAttack() 在 C# Enemy.cs 里已实现，
+-- 直接通过 enemy:CanSeePlayer() / enemy:CanAttack() 调用即可，
+-- 不要在 Lua 里重写。
 --
--- 你需要实现的函数：
---   1. CanSeePlayer(enemy)  → 返回 bool（距离+高度差判断）
---   2. CanAttack(enemy)     → 返回 bool（调 enemy:CanAttack()）
---   3. DoAttack(enemy)      → 返回 bool（AABB 碰撞检测 + 造成伤害）
---   4. CalculateDamage(base) → 返回 number（伤害公式：暴击/护甲等）
---
--- 用法：其他 Lua 文件里
---   local combat = require("combat_util")
---   if combat.CanSeePlayer(enemy) then ... end
+-- 这里只放 C# 没有的、纯 Lua 的扩展逻辑，例如：
+--   - 伤害公式（暴击率、护甲减伤等）
+--   - 复杂的行为树判定
+--   - 目前暂时为空，等你设计好伤害公式再填
+-- ============================================================

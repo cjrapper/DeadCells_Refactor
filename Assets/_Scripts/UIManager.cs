@@ -3,9 +3,9 @@ using UnityEngine.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-using AngryBirds.Player;
+using DeadCells.Player;
 
-namespace AngryBirds.Core
+namespace DeadCells.Core
 {
     public class UIManager : MonoBehaviour
 {

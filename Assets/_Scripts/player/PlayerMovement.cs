@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-namespace AngryBirds.Player
+namespace DeadCells.Player
 {
     /// <summary>
     /// 玩家移动组件 —— 处理水平移动、跳跃、重力、贴墙、单向平台、冲刺物理。

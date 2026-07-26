@@ -1,4 +1,4 @@
-namespace AngryBirds.Enemy
+namespace DeadCells.Enemy
 {
     public class EnemyStateMachine
 {

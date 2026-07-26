@@ -2,14 +2,15 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-using AngryBirds.Combat;
+using DeadCells.Combat;
+using DeadCells.Save;
 
-namespace AngryBirds.Player
+namespace DeadCells.Player
 {
     /// <summary>
     /// 玩家战斗组件 —— 武器管理、攻击判定、挥剑动画。
     /// </summary>
-    public class PlayerCombat : MonoBehaviour
+    public class PlayerCombat : MonoBehaviour,ISaveable
     {
         [Header("Weapons")]
         public List<WeaponData> weaponInventory;
@@ -102,6 +103,31 @@ namespace AngryBirds.Player
                 Gizmos.color = Color.blue;
                 Gizmos.DrawWireSphere(attackOrigin.position, currentWeapon.attackRange);
             }
+        }
+
+        public void OnSave(SaveData data)
+        {
+            data.weaponNames.Clear();
+            foreach (var w in weaponInventory)
+            {
+                data.weaponNames.Add(w.name);
+            }
+
+            data.currentWeaponIndex = currentWeaponIndex;
+        }
+
+        public void OnLoad(SaveData data)
+        {
+            currentWeaponIndex = data.currentWeaponIndex;
+            weaponInventory.Clear();
+            foreach (var wName in data.weaponNames )
+            {
+                WeaponData wd = Resources.Load<WeaponData>($"Weapons/{wName}");
+                if (wd != null)weaponInventory.Add(wd);
+            }
+
+            if (weaponInventory.Count > 0 && currentWeaponIndex < weaponInventory.Count)
+                currentWeapon = weaponInventory[currentWeaponIndex];
         }
     }
 }

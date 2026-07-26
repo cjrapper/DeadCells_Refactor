@@ -1,8 +1,8 @@
 using UnityEngine;
 
-using AngryBirds.Core;
+using DeadCells.Core;
 
-namespace AngryBirds.Combat
+namespace DeadCells.Combat
 {
     public class Projectile : MonoBehaviour
     {

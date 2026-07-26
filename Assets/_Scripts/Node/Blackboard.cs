@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace AngryBirds.AI.Node
+namespace DeadCells.AI.Node
 {
     public class Blackboard
 {

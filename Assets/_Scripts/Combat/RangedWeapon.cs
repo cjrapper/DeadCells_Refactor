@@ -1,10 +1,10 @@
 using UnityEngine;
 
-using AngryBirds.Loading;
-using AngryBirds.Core;
-using AngryBirds.Player;
+using DeadCells.Loading;
+using DeadCells.Core;
+using DeadCells.Player;
 
-namespace AngryBirds.Combat
+namespace DeadCells.Combat
 {
     [CreateAssetMenu(fileName = "New Ranged Weapon", menuName = "Combat/Ranged Weapon")]
     public class RangedWeapon : WeaponData

@@ -1,10 +1,10 @@
 using UnityEngine;
 using System.Collections;
 
-using AngryBirds.AI.Node;
-using AngryBirds.Core;
+using DeadCells.AI.Node;
+using DeadCells.Core;
 
-namespace AngryBirds.AI.BehaviourTree
+namespace DeadCells.AI.BehaviourTree
 {
     /// <summary>
     /// 行为树执行器：挂载到敌人 GameObject，引用一份 BTConfig。
@@ -13,7 +13,7 @@ namespace AngryBirds.AI.BehaviourTree
     public class BTExecutor : MonoBehaviour, IDamageable
     {
         [Header("行为树")]
-        [SerializeField] private BTConfig btConfig;
+        [SerializeField] private BTConfig btConfig; 
 
         [Header("属性")]
         [SerializeField] private int maxHealth = 50;

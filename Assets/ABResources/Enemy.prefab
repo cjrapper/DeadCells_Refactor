@@ -256,7 +256,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d157709bad21c6f4ba9db19e776cef57, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 0}
+  player: {fileID: 3792645911447953178}
   moveSpeed: 5
   chaseSpeed: 7
   chaseRange: 5
@@ -273,7 +273,7 @@ MonoBehaviour:
   playerLayer:
     serializedVersion: 2
     m_Bits: 0
-  attackPos: {fileID: 0}
+  attackPos: {fileID: 3792645911447953178}
   alertSign: {fileID: 0}
   useLuaFSM: 0
   jumpForce: 5

@@ -1,9 +1,9 @@
 using UnityEngine;
 
-using AngryBirds.Core;
-using AngryBirds.Player;
+using DeadCells.Core;
+using DeadCells.Player;
 
-namespace AngryBirds.Combat
+namespace DeadCells.Combat
 {
     // Create Asset Menu for easy creation in Project window
     [CreateAssetMenu(fileName = "New Sword Weapon", menuName = "Combat/Sword Weapon")]

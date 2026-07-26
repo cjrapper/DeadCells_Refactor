@@ -22,7 +22,7 @@ function state.Enter(enemy)
     enemy:UpdateVisuals()
     
 end
-function state.Update(enemy)
+function state.LogicUpdate(enemy)
     hurtTimer=hurtTimer-CS.UnityEngine.Time.deltaTime
     if hurtTimer<=0 then
         if enemy.player ~=nil then

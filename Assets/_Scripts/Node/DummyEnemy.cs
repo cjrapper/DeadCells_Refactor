@@ -1,9 +1,9 @@
 using System.Collections;
 using UnityEngine;
 
-using AngryBirds.Core;
+using DeadCells.Core;
 
-namespace AngryBirds.AI.Node
+namespace DeadCells.AI.Node
 {
     public class DummyEnemy : MonoBehaviour, IDamageable
 {

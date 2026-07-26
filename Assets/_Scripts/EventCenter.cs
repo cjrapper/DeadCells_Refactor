@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace AngryBirds.Core
+namespace DeadCells.Core
 {
     public class EventCenter : MonoBehaviour
 {

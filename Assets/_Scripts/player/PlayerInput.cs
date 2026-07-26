@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace AngryBirds.Player
+namespace DeadCells.Player
 {
     /// <summary>
     /// 玩家输入组件 —— 集中处理所有输入，其他组件通过它读取输入状态。

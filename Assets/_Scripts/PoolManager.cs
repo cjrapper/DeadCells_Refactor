@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace AngryBirds.Core
+namespace DeadCells.Core
 {
     /// <summary>
     /// 对象池类型枚举

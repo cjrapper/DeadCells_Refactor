@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace AngryBirds.AI.Node
+namespace DeadCells.AI.Node
 {
     public class SelectorNode : BehaviourNode
 {

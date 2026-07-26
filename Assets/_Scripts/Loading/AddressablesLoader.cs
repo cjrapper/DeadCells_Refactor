@@ -1,7 +1,7 @@
 using UnityEngine;
 
-using AngryBirds.Core;
-// 直接使用 AngryBirds.Enemy.Enemy 全限定名，避免命名空间冲突
+using DeadCells.Core;
+// 直接使用 DeadCells.Enemy.Enemy 全限定名，避免命名空间冲突
 
 // 安装 com.unity.addressables 包后自动启用 Addressables 加载
 #if HAS_ADDRESSABLES
@@ -9,7 +9,7 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 #endif
 
-namespace AngryBirds.Loading
+namespace DeadCells.Loading
 {
     /// <summary>
     /// Addressables 加载器 —— 替代手写的 ABManager + ABLoader。
@@ -80,7 +80,7 @@ namespace AngryBirds.Loading
 
         private void OnEnemyLoaded(GameObject enemyObj)
         {
-            var enemyScript = enemyObj.GetComponent<AngryBirds.Enemy.Enemy>();
+            var enemyScript = enemyObj.GetComponent<DeadCells.Enemy.Enemy>();
             if (enemyScript != null && enemyScript.player == null)
             {
                 GameObject player = GameObject.FindGameObjectWithTag("Player");

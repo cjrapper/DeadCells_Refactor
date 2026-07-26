@@ -1,9 +1,9 @@
 using System.Collections;
 using UnityEngine;
 
-using AngryBirds.Core;
+using DeadCells.Core;
 
-namespace AngryBirds.Enemy
+namespace DeadCells.Enemy
 {
     public class AttackState : EnemyState
     {

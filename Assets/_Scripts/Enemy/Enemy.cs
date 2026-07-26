@@ -3,9 +3,9 @@ using System.Collections;
 using UnityEngine.Rendering;
 using System;
 
-using AngryBirds.Core;
+using DeadCells.Core;
 
-namespace AngryBirds.Enemy
+namespace DeadCells.Enemy
 {
     public abstract class Enemy : MonoBehaviour, IDamageable
     {

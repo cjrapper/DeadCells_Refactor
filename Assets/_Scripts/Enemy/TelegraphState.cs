@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-namespace AngryBirds.Enemy
+namespace DeadCells.Enemy
 {
     public class TelegraphState : EnemyState
     {

@@ -3,16 +3,18 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-using AngryBirds.Core;
-using AngryBirds.Combat;
+using DeadCells.Core;
+using DeadCells.Combat;
+using DeadCells.Save;
+using UnityEngine.SceneManagement;
 
-namespace AngryBirds.Player
+namespace DeadCells.Player
 {
     /// <summary>
     /// 玩家控制器 —— 状态机编排器。
     /// 所有具体逻辑已委托给 PlayerInput / PlayerMovement / PlayerHealth / PlayerCombat / PLayerEffect。
     /// </summary>
-    public class PlayerController : MonoBehaviour
+    public class PlayerController : MonoBehaviour,ISaveable
     {
         // ==================== 组件引用（Awake时自动获取）====================
         public PlayerInput PlayerInput { get; private set; }
@@ -36,8 +38,8 @@ namespace AngryBirds.Player
         public Transform WeaponPivotTransform;
 
         [Header("Combat — 保留在 PlayerController 以兼容场景序列化，Awake 注入到 PlayerCombat")]
-        public List<AngryBirds.Combat.WeaponData> WeaponInventory;
-        public AngryBirds.Combat.WeaponData CurrentWeapon;
+        public List<DeadCells.Combat.WeaponData> WeaponInventory;
+        public DeadCells.Combat.WeaponData CurrentWeapon;
         public AnimationCurve swingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
         public float swingDuration = 0.25f;
         public float maxSwingAngle = 120f;
@@ -506,6 +508,19 @@ namespace AngryBirds.Player
         public void RunInnerPhysics()
         {
             currentInnerState?.PhysicsUpdate();
+        }
+
+        public void OnSave(SaveData data)
+        {
+            data.posX = transform.position.x;
+            data.posY = transform.position.y;
+            data.posZ = transform.position.z;
+            data.sceneName = SceneManager.GetActiveScene().name;
+        }
+
+        public void OnLoad(SaveData data)
+        {
+            transform.position = new Vector3(data.posX, data.posY, data.posZ);
         }
     }
 }

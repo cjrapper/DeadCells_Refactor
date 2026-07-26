@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace AngryBirds.Player
+namespace DeadCells.Player
 {
     public class AutoDestroy : MonoBehaviour
 {

@@ -37,7 +37,7 @@ function state.Enter(enemy)
 end
 
 -- ============ Update：每帧调用，return 下一个状态名 ============
-function state.Update(enemy)
+function state.LogicUpdate(enemy)
     -- 倒计时
     timer = timer - CS.UnityEngine.Time.deltaTime   -- 注意 CS.UnityEngine.Time，不是 UnityEngine.Time
 
@@ -66,7 +66,7 @@ function state.Exit(enemy)
 end
 
 -- ============ 局部函数：AABB 攻击判定 ============
-function DoAttack(enemy)
+local function DoAttack(enemy)
     if enemy.player == nil then return false end
 
     -- Lua 里 GetComponent 用字符串参数
@@ -100,7 +100,7 @@ function DoAttack(enemy)
        and attackBounds.max.y >= playerBounds.min.y then
 
         -- 命中了！通过 IDamageable 接口造成伤害
-        local dmgTarget = enemy.player:GetComponent("AngryBirds.Core.IDamageable")
+        local dmgTarget = enemy.player:GetComponent("DeadCells.Core.IDamageable")
         if dmgTarget ~= nil then
             local pos = enemy:GetBackCenter()        -- C# 方法
             -- TakeDamage(伤害值, 来源位置, 击退力度)

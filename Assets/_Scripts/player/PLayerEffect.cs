@@ -2,9 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-using AngryBirds.Core;
+using DeadCells.Core;
 
-namespace AngryBirds.Player
+namespace DeadCells.Player
 {
     public class PLayerEffect : MonoBehaviour
     {

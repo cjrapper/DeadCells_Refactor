@@ -1,9 +1,9 @@
 using UnityEngine;
 // using DG.Tweening; // 如果你有DoTween，没有就用协程
 
-using AngryBirds.Core;
+using DeadCells.Core;
 
-namespace AngryBirds.Player
+namespace DeadCells.Player
 {
     public class GhostEffect : MonoBehaviour
 {

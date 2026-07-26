@@ -1,4 +1,4 @@
-namespace AngryBirds.AI.BehaviourTree
+namespace DeadCells.AI.BehaviourTree
 {
     /// <summary>行为树节点类型</summary>
     public enum BTNodeType

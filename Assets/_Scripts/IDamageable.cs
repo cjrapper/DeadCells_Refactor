@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace AngryBirds.Core
+namespace DeadCells.Core
 {
     public interface IDamageable
 {

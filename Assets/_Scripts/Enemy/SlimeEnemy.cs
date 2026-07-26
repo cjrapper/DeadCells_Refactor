@@ -1,7 +1,7 @@
 using UnityEngine;
 using System;
 
-namespace AngryBirds.Enemy
+namespace DeadCells.Enemy
 {
     public class SlimeEnemy : Enemy
     {

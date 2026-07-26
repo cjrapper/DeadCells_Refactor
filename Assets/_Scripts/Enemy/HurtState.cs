@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace AngryBirds.Enemy
+namespace DeadCells.Enemy
 {
     public class HurtState : EnemyState
 {

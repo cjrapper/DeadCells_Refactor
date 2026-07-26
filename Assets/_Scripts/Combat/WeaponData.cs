@@ -1,8 +1,8 @@
 using UnityEngine;
 
-using AngryBirds.Player;
+using DeadCells.Player;
 
-namespace AngryBirds.Combat
+namespace DeadCells.Combat
 {
     public abstract class WeaponData : ScriptableObject
 {

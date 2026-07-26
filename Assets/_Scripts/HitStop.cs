@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-namespace AngryBirds.Core
+namespace DeadCells.Core
 {
     public class HitStop : MonoBehaviour
 {

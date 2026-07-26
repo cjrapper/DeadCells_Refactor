@@ -2,14 +2,15 @@ using System.Collections;
 using UnityEngine;
 using Cinemachine;
 
-using AngryBirds.Core;
+using DeadCells.Core;
+using DeadCells.Save;
 
-namespace AngryBirds.Player
+namespace DeadCells.Player
 {
     /// <summary>
     /// 玩家生命/受击组件 —— 处理血量、受伤、死亡、击退、闪红、屏幕震动。
     /// </summary>
-    public class PlayerHealth : MonoBehaviour, IDamageable
+    public class PlayerHealth : MonoBehaviour, IDamageable,ISaveable
     {
         [Header("Health")]
         public int maxHealth = 100;
@@ -113,6 +114,19 @@ namespace AngryBirds.Player
         public static void RestoreTimeScale()
         {
             Time.timeScale = previousTimeScale;
+        }
+
+        public void OnSave(SaveData data)
+        {
+            data.maxHealth = maxHealth;
+            data.currentHealth = CurrentHealth;
+        }
+
+        public void OnLoad(SaveData data)
+        {
+            maxHealth = data.maxHealth;
+            CurrentHealth = data.currentHealth;
+            EventCenter.Instance?.Broadcast(EventCenter.EventType.PlayerHealthChange.ToString(), CurrentHealth, maxHealth);
         }
     }
 }

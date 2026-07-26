@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using XLua;
 
-using AngryBirds.Core;
+using DeadCells.Core;
 
-namespace AngryBirds.Enemy
+namespace DeadCells.Enemy
 {
     /// <summary>
     /// Enemy → Lua 桥接组件。
@@ -61,16 +61,8 @@ namespace AngryBirds.Enemy
         {
             try
             {
-                // 1. 加载 combat_util 并注入全局函数
+                // 1. 加载 combat_util（未来扩展用，目前为空壳）
                 LuaManager.DoString("require 'combat_util'");
-                // 把 combat_util 的函数设为全局，供各状态文件使用
-                LuaManager.DoString(@"
-                    local combat = require 'combat_util'
-                    CanSeePlayer = combat.CanSeePlayer
-                    CanAttack = combat.CanAttack
-                    DoAttack = combat.DoAttack
-                    CalculateDamage = combat.CalculateDamage
-                ");
 
                 // 2. 加载 FSM 主文件
                 LuaManager.DoString("local fsm = require 'enemy_fsm'");

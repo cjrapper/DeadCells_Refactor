@@ -2,7 +2,7 @@ using System.IO;
 using UnityEngine;
 using XLua;
 
-namespace AngryBirds.Core
+namespace DeadCells.Core
 {
     /// <summary>
     /// Lua 虚拟机管理器 — 全局单例，负责 LuaEnv 生命周期和脚本加载。

@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace AngryBirds.Enemy
+namespace DeadCells.Enemy
 {
     public class PatrolState : EnemyState
 {

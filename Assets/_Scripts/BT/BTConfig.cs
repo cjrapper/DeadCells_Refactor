@@ -2,13 +2,15 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace AngryBirds.AI.BehaviourTree
+namespace DeadCells.AI.BehaviourTree
 {
     /// <summary>
     /// 行为树配置 ScriptableObject。
 /// 在 BTEditorWindow 里编辑，运行时由 BTCompiler 编译为 BehaviourNode 树。
     /// </summary>
+#if UNITY_EDITOR
     [CreateAssetMenu(fileName = "NewBT", menuName = "AI/行为树配置")]
+#endif
     public class BTConfig : ScriptableObject
 {
     public List<BTNodeData> nodes = new();
