@@ -3,7 +3,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 
-using AngryBirds.AI.BehaviourTree;
+using DeadCells.AI.BehaviourTree;
 
 /// <summary>
 /// 行为树可视化编辑器。Window → 行为树编辑器

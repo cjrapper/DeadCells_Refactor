@@ -1,16 +1,16 @@
 using UnityEngine;
 using UnityEditor;
 
-using AngryBirds.Enemy;
+using DeadCells.Enemy;
 
 [CustomEditor(typeof(SlimeEnemy))]
 public class SlimeEditor : Editor
 {
-    private AngryBirds.Enemy.Enemy enemy;
+    private DeadCells.Enemy.Enemy enemy;
 
     private void OnEnable()
     {
-        enemy = (AngryBirds.Enemy.Enemy)target;
+        enemy = (DeadCells.Enemy.Enemy)target;
     }
 
     public override void OnInspectorGUI()

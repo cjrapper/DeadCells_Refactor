@@ -231,11 +231,11 @@ public class LevelDesigner
         }
 
         // AddressablesLoader (替代已删除的 ABManager)
-        if (Object.FindObjectOfType<AngryBirds.Loading.AddressablesLoader>() == null)
+        if (Object.FindObjectOfType<DeadCells.Loading.AddressablesLoader>() == null)
         {
             GameObject gm = GameObject.Find("GameManager");
             if (gm == null) { gm = new GameObject("GameManager"); Undo.RegisterCreatedObjectUndo(gm, "Create GameManager"); }
-            Undo.AddComponent<AngryBirds.Loading.AddressablesLoader>(gm);
+            Undo.AddComponent<DeadCells.Loading.AddressablesLoader>(gm);
         }
     }
 
