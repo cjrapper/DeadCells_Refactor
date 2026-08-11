@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -43,6 +41,9 @@ namespace DeadCells.Player
 
         [Header("Debug")]
         public bool showDebugInfo = true;
+
+        [Header("FSM Mode")]
+        public bool useLuaFSM = true;   // true = Lua HFSM 接管；false = 回退 C# 状态机
 
         // ==================== 运行时 ====================
         public float JumpBufferTimer => PlayerInput.JumpBufferTimer;
@@ -130,7 +131,7 @@ namespace DeadCells.Player
         void Start()
         {
             if (SpriteRenderer != null) SpriteRenderer.sortingOrder = 10;
-            InitializeInnerFSM();
+            if (!useLuaFSM) InitializeInnerFSM();
         }
 
         void Update()
@@ -146,8 +147,8 @@ namespace DeadCells.Player
             if (PlayerInput != null && PlayerInput.SwitchWeaponDown)
                 PlayerCombat?.SwitchWeapon();
 
-            // 3. 状态机
-            RunInnerFSM();
+            // 3. 状态机（useLuaFSM=true 时由 PlayerLuaBridge 驱动 Lua HFSM）
+            if (!useLuaFSM) RunInnerFSM();
 
             // 4. Debug
             if (Input.GetKeyDown(KeyCode.BackQuote)) showDebugInfo = !showDebugInfo;
@@ -156,7 +157,7 @@ namespace DeadCells.Player
         void FixedUpdate()
         {
             if (PlayerHealth != null && PlayerHealth.IsHurting) return;
-            RunInnerPhysics();
+            if (!useLuaFSM) RunInnerPhysics();
         }
 
         // ==================== 对外接口（给 FSM 状态和外部调用）====================

@@ -11,7 +11,7 @@ namespace DeadCells.Core
     public class LuaManager : MonoBehaviour
     {
         public static LuaEnv LuaEnv { get; private set; }
-        public static LuaManager Instance { get; private set; }
+        public LuaManager Instance { get; private set; }
 
         [Header("Lua 脚本路径（相对于 Resources 或 Assets）")]
         public string luaRootPath = "Assets/_Scripts/Lua";
@@ -36,6 +36,8 @@ namespace DeadCells.Core
         /// </summary>
         private byte[] CustomLoader(ref string filepath)
         {
+            // 点号路径 → 目录路径：require("Framework.Fsm.State") → Framework/Fsm/State.lua
+            filepath = filepath.Replace('.', '/');
             string fullPath = Path.Combine(luaRootPath, filepath + ".lua");
             if (!File.Exists(fullPath))
             {
@@ -67,5 +69,6 @@ namespace DeadCells.Core
                 Debug.Log("[LuaManager] Lua 虚拟机已释放");
             }
         }
+        // 临时验证脚本（放 Assets/Editor 或场景里挂个空物体）
     }
 }
