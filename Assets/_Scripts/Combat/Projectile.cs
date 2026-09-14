@@ -23,6 +23,19 @@ namespace DeadCells.Combat
         private bool hasPool;
         private Coroutine lifetimeCoroutine;
 
+        [Header("Fly Facing")]
+        [Tooltip("飞行时持续朝速度方向对齐（保证贴图朝向永远正确；预制体上别再挂自转组件）")]
+        public bool alignToVelocity = true;
+        [Tooltip("贴图头部相对\"右\"的偏差角：头朝左=180，头朝上=-90，头朝下=90（也可直接手动旋转预制体，脚本会记住初始角度）")]
+        public float spriteAngleOffset = 0f;
+
+        private float baseAngleOffset;   // Awake 时记录的预制体初始朝向（支持"手动转预制体"）
+
+        void Awake()
+        {
+            baseAngleOffset = transform.eulerAngles.z;   // 手动转 180 也能生效
+        }
+
         void Start()
         {
             rb = GetComponent<Rigidbody2D>();
@@ -33,6 +46,19 @@ namespace DeadCells.Combat
 
             lifetimeCoroutine = StartCoroutine(LifetimeRoutine());
             rb.velocity = transform.right * speed;
+        }
+
+        void Update()
+        {
+            // 飞行朝向对齐：每帧把朝向对齐到速度方向（+贴图偏差角）。
+            // 这样火球头永远朝飞行方向，也能用 spriteAngleOffset 修贴图朝向
+            // （之前"旋转 180 度没效果"就是被自转组件/后续逻辑覆盖了）
+            if (alignToVelocity && rb != null && rb.velocity.sqrMagnitude > 0.01f)
+            {
+                float angle = Mathf.Atan2(rb.velocity.y, rb.velocity.x) * Mathf.Rad2Deg
+                              + baseAngleOffset + spriteAngleOffset;
+                transform.rotation = Quaternion.Euler(0f, 0f, angle);
+            }
         }
 
         private System.Collections.IEnumerator LifetimeRoutine()

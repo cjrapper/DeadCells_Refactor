@@ -264,8 +264,8 @@ MonoBehaviour:
   startPos: {x: 0, y: 0, z: 0}
   maxHealth: 100
   visionHeight: 3
-  attackRange: 1
-  damage: 1
+  attackRange: 1.5
+  damage: 3
   windupTime: 0.3
   attackDuration: 0.2
   attackCooldown: 1.5

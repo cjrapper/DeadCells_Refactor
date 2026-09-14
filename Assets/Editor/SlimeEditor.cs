@@ -28,25 +28,9 @@ public class SlimeEditor : Editor
 
     private void OnSceneGUI()
     {
-        if (enemy == null) return;
-
-        Handles.zTest = UnityEngine.Rendering.CompareFunction.LessEqual;
-        Vector3 center = enemy.transform.position;
-
-        Handles.color = new Color(0, 1, 0, 0.1f);
-        Handles.DrawSolidDisc(center, Vector3.forward, enemy.chaseRange);
-        Handles.color = Color.green;
-        Handles.DrawWireDisc(center, Vector3.forward, enemy.chaseRange);
-
-        Vector3 attackCenter = enemy.attackPos != null ? enemy.attackPos.position : center;
-        Handles.color = new Color(1, 0, 0, 0.1f);
-        Handles.DrawSolidDisc(attackCenter, Vector3.forward, enemy.attackRange);
-        Handles.color = Color.red;
-        Handles.DrawWireDisc(attackCenter, Vector3.forward, enemy.attackRange);
-
-        Handles.Label(center + Vector3.up * (enemy.chaseRange + 0.5f), "巡逻范围");
-        Handles.Label(attackCenter + Vector3.up * (enemy.attackRange + 0.5f), "攻击范围");
-
-        Repaint();
+        // 范围绘制统一交给 Assets/Editor/RangeDebugOverlay.cs：
+        //   按住 ` 键就能看到【所有】敌人 + 玩家的范围，不用先选中物体。
+        //   这里如果继续画，选中史莱姆时会出现两套圈（叠在一起还不好分辨）。
+        //   本文件只保留 Inspector 里的"当前状态"显示。
     }
 }

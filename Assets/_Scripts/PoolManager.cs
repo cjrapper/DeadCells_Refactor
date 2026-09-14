@@ -11,7 +11,8 @@ namespace DeadCells.Core
         LandDust,
         HitEffect,
         Ghost,
-        Projectile
+        Projectile,
+        Coin
     }
 
     /// <summary>
@@ -28,6 +29,7 @@ namespace DeadCells.Core
         [SerializeField] private SamplePool hitEffectPool;
         [SerializeField] private SamplePool ghostPool;
         [SerializeField] private SamplePool projectilePool;
+        [SerializeField] private SamplePool coinPool;
 
         private void Awake()
         {
@@ -88,6 +90,7 @@ namespace DeadCells.Core
                 PoolType.HitEffect => hitEffectPool,
                 PoolType.Ghost => ghostPool,
                 PoolType.Projectile => projectilePool,
+                PoolType.Coin => coinPool,
                 _ => null,
             };
         }
@@ -101,6 +104,7 @@ namespace DeadCells.Core
             if (hitEffectPool == null) hitEffectPool = FindPoolByName("HitEffectPool");
             if (ghostPool == null) ghostPool = FindPoolByName("GhostPool");
             if (projectilePool == null) projectilePool = FindPoolByName("ProjectilePool");
+            if (coinPool == null) coinPool = FindPoolByName("CoinPool");
         }
 
         private SamplePool FindPoolByName(string name)

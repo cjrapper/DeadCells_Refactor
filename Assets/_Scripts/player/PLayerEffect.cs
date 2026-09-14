@@ -1,12 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using XLua;
 
 using DeadCells.Core;
 
 namespace DeadCells.Player
 {
-    public class PLayerEffect : MonoBehaviour
+    [LuaCallCSharp]
+    public class PlayerEffect : MonoBehaviour
     {
         public GameObject ghostPrefab;
         public GameObject JumpDustPrefab;

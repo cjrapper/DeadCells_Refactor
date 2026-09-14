@@ -18,6 +18,8 @@ MonoBehaviour:
   attackRange: 2
   knockbackForce: 5
   useMeleeSwing: 1
+  heldVisualPrefab: {fileID: 1972688317969237372, guid: 965f9afe49e6792429e07ab004aedf9f, type: 3}
+  attackOriginChildName: 
   targetLayer:
     serializedVersion: 2
     m_Bits: 128

@@ -2,6 +2,7 @@ using UnityEngine;
 
 using DeadCells.Loading;
 using DeadCells.Core;
+using DeadCells.Data;
 using DeadCells.Player;
 
 namespace DeadCells.Combat
@@ -25,9 +26,13 @@ namespace DeadCells.Combat
             return;
         }
 
-        // Determine spawn position (slightly in front of player)
-        // Use AttackOrigin if available, otherwise player center
-        Transform spawnPoint = holder.AttackOrigin != null ? holder.AttackOrigin : holder.transform;
+        // 出膛点 = 当前武器的攻击原点。
+        // ★ 用 holder.CurrentAttackOrigin 而不是持平的 holder.AttackOrigin：
+        //   枪口做进外观预制体后（WeaponData.attackOriginChildName = "Muzzle"），
+        //   子弹就会从枪口出来、跟着枪动，而不是从一个固定的玩家挂点出来
+        Transform spawnPoint = holder.CurrentAttackOrigin != null
+            ? holder.CurrentAttackOrigin
+            : holder.transform;
 
         // Calculate rotation based on player facing direction
         // If player scale.x is 1, rotation is 0. If -1, rotation is 180.
@@ -64,7 +69,10 @@ namespace DeadCells.Combat
             projObj = Instantiate(projectilePrefab, spawnPoint.position, rotation);
         }
 
-        // Trigger Hit Stop for combat feel
+        // 发射反馈：轻顿帧 + 发射音。
+        // 注意这里【没有命中】，所以不走 Feedback.Hit（那会播命中音 + 命中特效）
+        AudioManager.PlayAt(SfxId.AttackSwing, spawnPoint.position);
+        Feedback.Shake(0.1f);
         HitStop.Stop(0.05f);
 
         // Setup Projectile Stats

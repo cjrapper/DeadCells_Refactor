@@ -17,6 +17,9 @@ MonoBehaviour:
   cooldown: 0.5
   attackRange: 1.5
   knockbackForce: 5
+  useMeleeSwing: 0
+  heldVisualPrefab: {fileID: 8172624730933712968, guid: 7ff0ee24ad6462a44be3cc1c8bc14ccc, type: 3}
+  attackOriginChildName: 
   projectilePrefab: {fileID: 4665273349984560365, guid: 9d289032a0fd0b746b6f32d2a7a68bd7, type: 3}
   projectileSpeed: 15
   targetLayer:

@@ -32,3 +32,74 @@ UserSettings/
 # -----------------------------
 .DS_Store
 Thumbs.db
+
+# -----------------------------
+# ★ 演示视频：绝对不要提交原始录制文件
+#
+# 原因：git 提交过大文件后，它会【永久留在历史里】——
+#       后面 git rm 删掉也没用，别人 clone 仍然要下全量，仓库再也瘦不回来。
+#       而且 GitHub 不能在 README 里内嵌播放视频（<video> 标签不生效）。
+#
+# 正确做法：
+#   · README 里放【压缩过的 GIF】（10 秒以内，控制在 3~5 MB）→ 自动循环播放
+#   · 完整视频传 B站 / YouTube → README 顶部放个链接
+# -----------------------------
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.flv
+Recordings/
+DemoVideo/
+
+# -----------------------------
+# ★ 个人信息 / 面试资料 / AI 工具配置 —— 一律不公开
+#
+# 注意：这些文件有些【已经在 git 历史里】了。
+#       光加进 .gitignore 不会让它们从仓库消失，必须同时执行：
+#           git rm --cached <文件>
+#       否则 GitHub 上仍然能看到旧版本。
+# -----------------------------
+简历_*.txt
+简历_*.pdf
+简历_*.docx
+面试应答与优化路线.md
+docs/知识库_*.md
+docs/笔试_*.md
+docs/面试弹药_*.md
+docs/待问.md
+docs/*MOMO*.pdf
+docs/*实习*.pdf
+docs/*策划*.pdf
+docs/Unity.pdf
+docs/extract_*.txt
+
+# AI 辅助工具的本地配置（含会话/技能配置，不属于项目本身）
+CLAUDE.md
+.claude/
+.cursor/
+.cursorrules
+
+# -----------------------------
+# 不要公开的资料
+#   · 公司相关材料：保密风险（实习作品/策划案不要放公开仓库）
+#   · 下载的教材/电子书 + 从里面抽取的文本：版权风险
+# 如果确认某个文件可以公开，用 git add -f <文件> 强制加进来
+# -----------------------------
+docs/Unity.pdf
+docs/extract_*.txt
+docs/*MOMO*.pdf
+docs/*实习*.pdf
+docs/*策划*.pdf
+
+# -----------------------------
+# 打包产物（体积大且可重新生成）
+# -----------------------------
+*.apk
+*.aab
+*.unitypackage
+*.app
+ExportedObj/
+crashlytics-build.properties
+sysinfo.txt

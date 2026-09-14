@@ -17,7 +17,13 @@ namespace DeadCells.Combat
     // Implementation of the abstract Attack method
     public override void Attack(PlayerController holder)
     {
-        Vector3 origin = holder.AttackOrigin.position;
+        // 外观上挂了 WeaponHitbox → 伤害交给碰撞盒（所见即所得），这里不再做圆形判定，
+        // 否则同一刀会被判定两次（圆形一次 + 碰撞盒一次）
+        if (holder.PlayerCombat != null && holder.PlayerCombat.HasHitbox) return;
+
+        Vector3 origin = holder.CurrentAttackOrigin != null
+            ? holder.CurrentAttackOrigin.position
+            : holder.transform.position;
 
         // Non-allocating overlap check
         int hitCount = Physics2D.OverlapCircleNonAlloc(origin, attackRange, hitBuffer, targetLayer);
@@ -35,10 +41,12 @@ namespace DeadCells.Combat
             }
         }
 
-        // Trigger Hit Stop if we hit something (Combat Feel)
+        // 命中反馈：顿帧 + 震屏 + 命中音 + 命中特效。
+        // 统一走 Feedback 入口 —— 以前是各武器自己 HitStop.Stop()，
+        // 结果就是"有些武器有顿帧没震动没音效"，手感参差不齐
         if (hasHit)
         {
-            HitStop.Stop(0.05f);
+            Feedback.Hit(origin, hitStop: 0.05f, shake: 0.25f);
         }
     }
 }

@@ -5,6 +5,8 @@ namespace DeadCells.Enemy
 {
     public class PatrolState : EnemyState
 {
+    // 巡逻与待机共用同一个动画（简化映射：不需要为每个状态单独做动画）
+    public override string AnimName => "FlyIdle";
     public PatrolState(Enemy enemy, EnemyStateMachine stateMachine):base(enemy, stateMachine) {}
     public override void Enter()
     {
@@ -32,7 +34,7 @@ namespace DeadCells.Enemy
         if (Mathf.Abs(toStartX) > 4f)
         {
             float dirX = Mathf.Sign(toStartX);
-            enemy.rb.velocity = new Vector2(dirX * enemy.moveSpeed * 0.5f, enemy.rb.velocity.y);
+            enemy.MoveHorizontal(dirX, enemy.moveSpeed * 0.5f);
             return;
         }
 
@@ -41,12 +43,13 @@ namespace DeadCells.Enemy
         // 守护：amplitude 无效时停止巡逻，而不是朝一个方向匀速漂移
         if (patrolAmplitude <= 0f || maxSpeed <= 0f)
         {
-            enemy.rb.velocity = new Vector2(0, enemy.rb.velocity.y);
+            enemy.StopHorizontal();
             return;
         }
         float omega = maxSpeed / patrolAmplitude;
         float velocityX = maxSpeed * MathF.Cos(Time.time * omega);
-        enemy.rb.velocity = new Vector2(velocityX, enemy.rb.velocity.y);
+        // 走 MoveHorizontal 钩子而不是直接写 velocity：史莱姆靠它实现"跳着走"
+        enemy.MoveHorizontal(Mathf.Sign(velocityX), Mathf.Abs(velocityX));
     }
     public override void Exit()
     {

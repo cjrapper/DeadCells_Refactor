@@ -129,6 +129,20 @@ namespace DeadCells.Enemy
             }
         }
 
+        /// <summary>C# 侧主动切换 Lua 状态（受击打断等外部触发）</summary>
+        public void ChangeState(string stateName)
+        {
+            if (!isInitialized || luaChangeState == null) return;
+            try
+            {
+                luaChangeState.Call(stateName);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[EnemyLuaBridge] ChangeState({stateName}) 异常: {e}");
+            }
+        }
+
         private void OnDestroy()
         {
             luaInit?.Dispose();
