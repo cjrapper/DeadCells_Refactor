@@ -108,7 +108,7 @@ namespace DeadCells.Core
         {
             if (wallet == null) return;
 
-            if (!wallet.TrySpend(item.price))
+            if (!wallet.TrySpendCoins(item.price))
             {
                 Debug.Log("[Shop] 金币不足");
                 return;

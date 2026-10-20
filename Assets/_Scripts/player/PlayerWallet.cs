@@ -5,20 +5,22 @@ namespace DeadCells.Player
 {
     public class PlayerWallet:MonoBehaviour
     {
-        public int Coins{get;private set ;}
+        //the amount of coins the player has
+        public int Coins{ get; private set; }=0;//read公开，write私有
 
         public void AddCoins(int amount)
         {
-            if (amount <= 0) return;
-            Coins +=amount;
-            EventCenter.Instance?.Broadcast(EventCenter.EventType.CoinChange.ToString(), Coins);
+            if(amount<=0)return;
+            Coins+=amount;
+            //事件中心播放金币change
+            EventCenter.Instance.Broadcast(EventCenter.EventType.CoinChange.ToString(),Coins);
         }
-
-        public bool TrySpend(int amount)
+        public bool TrySpendCoins(int amount)
         {
-            if(Coins<amount)return false;
-            Coins -= amount;
-            EventCenter.Instance?.Broadcast(EventCenter.EventType.CoinChange.ToString(), Coins);
+            if(amount<=0||Coins<amount)return false;
+            Coins-=amount;
+            //事件中心播放金币change
+            EventCenter.Instance.Broadcast(EventCenter.EventType.CoinChange.ToString(),Coins);
             return true;
         }
     }
