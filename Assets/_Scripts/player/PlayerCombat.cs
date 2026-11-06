@@ -187,16 +187,23 @@ namespace DeadCells.Player
             EventCenter.Instance?.Broadcast(EventCenter.EventType.WeaponChange.ToString(), currentWeaponIndex);
         }
 
-        /// <summary>商店购买武器入库（去重）</summary>
+        /// <summary>商店购买武器入库（去重）武器上限2把，超过2把就替换掉未装备的武器</summary>
         public void AddWeapon(WeaponData weapon)
         {
             if (weapon == null) return;
-            if (weaponInventory.Contains(weapon))
+            if (weaponInventory.Count < 2)
             {
-                Debug.Log($"[PlayerCombat] 已拥有武器 {weapon.name}");
-                return;
+                weaponInventory.Add(weapon);
             }
-            weaponInventory.Add(weapon);
+            else
+            {
+                if(weaponInventory.Contains(weapon))return;
+                //移除未装备的武器
+                weaponInventory.RemoveAt(currentWeaponIndex == 0 ? 1 : 0);
+                //强制归零，避免越界
+                currentWeaponIndex = 0;
+                weaponInventory.Add(weapon);
+            }
             EventCenter.Instance?.Broadcast(EventCenter.EventType.WeaponChange.ToString(), currentWeaponIndex);
         }
 

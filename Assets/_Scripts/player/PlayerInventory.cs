@@ -1,87 +1,83 @@
-using System;
-using System.Collections.Generic;
-using UnityEngine;
-
-using DeadCells.Core;
 using DeadCells.Data;
-
+using UnityEngine;
+using DeadCells.Shop;
+using System.Collections.Generic;
+using DeadCells.Core;
 namespace DeadCells.Player
 {
-    /// <summary>背包槽位：道具 + 数量</summary>
-    [Serializable]
+    public class PlayerInventory:MonoBehaviour
+{
+    [System.Serializable]
     public class InventorySlot
     {
-        public ShopItemData item;
-        public int count = 1;
+        public ShopItemData itemData;
+        public int count;
     }
-
-    /// <summary>
-    /// 玩家背包 —— 消耗品管理（武器走 PlayerCombat.weaponInventory）。
-    /// 加道具/使用道具都广播 InventoryChange 事件，UI 订阅刷新，互不引用。
-    /// </summary>
-    public class PlayerInventory : MonoBehaviour
+    public List<InventorySlot>slots = new();//背包栏位
+    public bool AddItem(ShopItemData item,int amount)
     {
-        public List<InventorySlot> slots = new();
-
-        public void AddItem(ShopItemData item, int count)
+        if(item==null||amount<=0)return false;
+        //检查是否已有该物品
+        var slot=slots.Find(s=>s.itemData==item);
+        if(slot!=null)
         {
-            if (item == null || count <= 0) return;
-
-            // 已有同类 → 叠数量；没有 → 新建槽位
-            InventorySlot slot = slots.Find(s => s.item == item);
-            if (slot != null) slot.count += count;
-            else slots.Add(new InventorySlot { item = item, count = count });
-
-            EventCenter.Instance?.Broadcast(EventCenter.EventType.InventoryChange.ToString());
+            slot.count+=amount;
         }
-
-        /// <summary>使用一个消耗品，成功返回 true</summary>
-        public bool UseItem(ShopItemData item)
+        else
         {
-            if (item == null) return false;
-            InventorySlot slot = slots.Find(s => s.item == item);
-            if (slot == null || slot.count <= 0) return false;
-
-            if (!ApplyEffect(item)) return false;
-
-            slot.count--;
-            if (slot.count <= 0) slots.Remove(slot);
-            EventCenter.Instance?.Broadcast(EventCenter.EventType.InventoryChange.ToString());
-            return true;
+            slots.Add(new InventorySlot{itemData=item,count=amount});
         }
-
-        public int GetCount(ShopItemData item)
+        EventCenter.Instance.Broadcast(EventCenter.EventType.InventoryChange.ToString());
+        return true;
+    }
+    public bool TrySpendItem(ShopItemData item,int amount)
+    {
+        var slot=slots.Find(s=>s.itemData==item);
+        if(item==null||amount<=0||slot==null||slot.count<amount)return false;
+        UseItem(item);
+        slot.count-=amount;
+        if(slot.count<=0)
         {
-            InventorySlot slot = slots.Find(s => s.item == item);
-            return slot != null ? slot.count : 0;
+            slots.Remove(slot);
         }
-
-        /// <summary>执行消耗品效果（可扩展：Heal → Buff → 弹药...）</summary>
-        private bool ApplyEffect(ShopItemData item)
+        EventCenter.Instance.Broadcast(EventCenter.EventType.InventoryChange.ToString());
+        return true;
+    
+    }
+    public int GetItemCount(ShopItemData item)
+    {
+        var slot=slots.Find(s=>s.itemData==item);
+        return slot!=null?slot.count:0;
+    }
+    public bool RemoveItem(ShopItemData item,int amount)
+    {
+        var slot=slots.Find(s=>s.itemData==item);
+        if(item==null||amount<=0||slot==null||slot.count<amount)return false;
+        slot.count-=amount;
+        if(slot.count<=0)
         {
-            switch (item.consumableType)
-            {
-                case ConsumableType.Heal:
-                    PlayerHealth health = GetComponent<PlayerHealth>();
-                    if (health == null) return false;
-                    if (health.CurrentHealth >= health.maxHealth) return false;  // 满血不让用
-                    health.Heal(item.healAmount);
-                    return true;
-
-                default:
-                    return false;
-            }
+            slots.Remove(slot);
         }
-
-        public bool RemoveItem(ShopItemData item, int count)
+        EventCenter.Instance.Broadcast(EventCenter.EventType.InventoryChange.ToString());
+        return true;
+    }
+    public void UseItem(ShopItemData item)
+    {
+        if(item==null)return;
+        switch(item.consumableType)
         {
-            if (item == null || count <= 0) return false;
-            InventorySlot slot =slots.Find(s=>s.item == item);
-            if(slot==null||slot.count<count) return false;
-            slot.count-=count;
-            if(slot.count<=0)slots.Remove(slot);
-            EventCenter.Instance?.Broadcast(EventCenter.EventType.InventoryChange.ToString());
-            return true;
+            case ConsumableType.Heal:
+                var playerHealth=GetComponent<PlayerHealth>();
+                if(playerHealth!=null)
+                {
+                    playerHealth.Heal(item.healAmount);
+                }
+                break;
+            default:
+                Debug.LogWarning("未实现的消耗品类型："+item.consumableType);
+                break;
         }
     }
 }
+}
+

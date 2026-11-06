@@ -151,7 +151,7 @@ namespace DeadCells.Traps
             // 0 < KeyCount 恒成立 —— 看起来像 bug，其实只是配置漏了一个引用。
             if (requiredKey != null)
             {
-                int have = inventory.GetCount(requiredKey);
+                int have = inventory.GetItemCount(requiredKey);
                 if (have < KeyCount)
                 {
                     Debug.Log($"[Door] 缺少钥匙：需要 {KeyCount} 个「{requiredKey.itemName}」，当前 {have} 个");

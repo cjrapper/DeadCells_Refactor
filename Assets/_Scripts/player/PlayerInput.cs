@@ -18,6 +18,7 @@ namespace DeadCells.Player
         public bool AttackHeld { get; private set; }   // 攻击键按住（持续攻击 channel 用）
         public bool DashDown { get; private set; }
         public bool SwitchWeaponDown { get; private set; }
+        public bool InPutLocked { get; set; }// 输入锁定（眩晕、UI 等状态下锁定输入）
 
         // === 输入缓存参数 ===
         [Header("Jump Buffer / Coyote Time")]
@@ -31,6 +32,11 @@ namespace DeadCells.Player
 
         public void Tick(bool isGrounded)
         {
+            if (InPutLocked)
+            {
+                ClearOutputs();
+                return;
+            }
             grounded = isGrounded;
 
             // 方向

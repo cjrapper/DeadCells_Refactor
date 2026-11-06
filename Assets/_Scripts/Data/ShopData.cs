@@ -9,10 +9,10 @@ namespace DeadCells.Data
     [CreateAssetMenu(fileName = "NewShop", menuName = "Data/Shop Data")]
     public class ShopData : ScriptableObject
     {
-        [Header("商店名称（英文：项目字体只有 ASCII，中文会显示成方框）")]
+        [Header("商店名称")]
         public string shopName = "SHOP";
 
         [Header("商品列表")]
-        public List<ShopItemData> items = new();
+        public List<ShopItemData> items = new();//货架
     }
 }

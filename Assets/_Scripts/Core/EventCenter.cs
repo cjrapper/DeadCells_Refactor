@@ -12,7 +12,7 @@ namespace DeadCells.Core
 
     // 注意：PlayerDie = "死亡发生的瞬间"（清状态、停驱动），PlayerDead = "死亡演出结束"（结算/GameOver）。
     // 两者分开是因为死亡动画期间游戏还没结束，UI 不能提前弹结算面板。
-    public enum EventType { PlayerHealthChange, PlayerStateChange, PlayerDead, PlayerHurt, CoinChange, WeaponChange, InventoryChange, DoorOpened, BossDefeated, PlayerDie }
+    public enum EventType { PlayerHealthChange, PlayerStateChange, PlayerDead, PlayerHurt, CoinChange, WeaponChange, InventoryChange, DoorOpened, BossDefeated, PlayerDie,KeyChange }
 
     private void Awake()
     {
