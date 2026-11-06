@@ -80,6 +80,12 @@ CLAUDE.md
 .claude/
 .cursor/
 .cursorrules
+.trae/
+.reasonix/
+.mcp.json
+
+# 编辑器本地配置（各人机器不同，不共享）
+.vscode/
 
 # -----------------------------
 # 不要公开的资料
