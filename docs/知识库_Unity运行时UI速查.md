@@ -27,6 +27,94 @@ img.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
 
 **记住这个骨架，换组件类型就是换 `typeof(...)`。**
 
+## 1.5 那四行代码里每个符号到底是什么（初学者最容易糊的地方）
+
+### `new GameObject("名字", typeof(RectTransform), typeof(Image))`
+
+**这一行干三件事：**
+1. 在场景里**创建一个新物体**，命名为 "名字"
+2. 给它挂 **RectTransform** 组件
+3. 给它挂 **Image** 组件
+
+`typeof(X)` = "X 这个类型"。传给构造函数就是"顺便帮我挂上它"。
+
+**完全等价于：**
+```csharp
+GameObject go = new GameObject("名字");
+go.AddComponent<RectTransform>();
+go.AddComponent<Image>();
+```
+
+**`RectTransform` 为什么必须：**
+
+| | 说明 |
+|---|---|
+| 每个物体天生带 `Transform` | 管位置 / 旋转 / 缩放 |
+| UI 元素需要 `RectTransform` | 它**继承自** `Transform`，多了锚点 / 轴心 / 尺寸 |
+| **一个物体只能有一个变换组件** | 不能既是 Transform 又是 RectTransform |
+
+> 创建时指定 `typeof(RectTransform)`，就是**让 Unity 直接给你 UI 那套**。
+> 只写 `new GameObject("x")` 拿到的是普通 Transform，**不算 UI 物体**。
+
+### `GameObject` vs `gameObject`
+
+| 写法 | 是什么 |
+|---|---|
+| `GameObject`（大写 G） | **类型**（类名） |
+| `gameObject`（小写 g） | **MonoBehaviour 的属性**，指向"**这个脚本挂的那个物体**" |
+
+> `gameObject` 只是"脚本自己所在的位置"。
+> **不代表"在它里面创建的物体会自动成为子物体"** —— 那个要自己 `SetParent`。
+
+### `go.transform` 不是"获取位置"
+
+```
+go.transform          → 拿到 Transform 组件
+go.transform.position → 才是位置
+```
+
+**Transform 管三样**：位置、旋转、缩放。
+
+### `SetParent(parent, false)` 里的 `parent` 是谁
+
+**`parent` 是方法参数，值由调用者决定 —— 不是固定的。**
+
+```csharp
+// 在 CreateRow 里，实际传的是 content
+row.transform.SetParent(content, false);
+```
+
+**关键：新创建的物体默认在场景根目录**
+
+```csharp
+new GameObject("Row", ...)   // ← 直接挂场景根上，和 Canvas 平级
+```
+
+**它不在任何 Canvas 下 → 所以不显示。** 必须 `SetParent` 才能挂进 UI 树。
+
+> **"挂脚本的物体是父节点"这个理解是错的。** 父节点是你自己指定的。
+
+### `GetComponent<RectTransform>()` 为什么还要"获取"
+
+**要改一个组件的属性，必须先拿到它的引用。**
+
+`new GameObject(...)` 返回的是 **`GameObject`（容器）**，不是组件。所以要 `GetComponent` 才能拿到组件对象。
+
+```csharp
+RectTransform rt = go.GetComponent<RectTransform>();   // 先在 go 上找到它
+rt.anchorMin = ...;                                     // 才能改它
+```
+
+### 小结：五个符号的关系
+
+```
+go                  → 一个 GameObject（场景里的"容器"）
+go.transform        → 它的 Transform / RectTransform 组件
+go.GetComponent<T>() → 拿到它身上某个组件
+gameObject          → 当前脚本所在的 GameObject
+transform           → 当前脚本所在物体的 Transform
+```
+
 ---
 
 ## 二、三种最常用元素
@@ -133,14 +221,49 @@ rt.sizeDelta = new Vector2(300f, 40f);         // 宽高
 
 ---
 
-## 七、生命周期速记
+## 七、生命周期速记（**修正版**）
 
-| 方法 | 什么时候跑 | 注意 |
+### 7.1 `Awake` 到底什么时候跑
+
+> **准确规则：`Awake` 在该物体"第一次被激活"时调用一次。**
+
+| 情况 | Awake 什么时候跑 |
+|---|---|
+| 场景里，开局 **active** | 场景加载时 |
+| 场景里，开局 **inactive** | **等到第一次 `SetActive(true)`** |
+| `Instantiate` 一个 **active** 的 prefab | 立刻 |
+| `Instantiate` 一个 **inactive** 的 prefab | 等到第一次 `SetActive(true)` |
+
+**"创建" 和 "激活" 不是一回事，但 `Awake` 只看后者。**
+
+### 7.2 四种回调对照
+
+| 方法 | 跑几次 | 时机 |
 |---|---|---|
-| `Awake` | 物体第一次被加载时，**只跑一次** | 初始化引用、建子物体 |
-| `OnEnable` | **每次** `SetActive(true)` 都跑 | 订阅事件放这儿 |
-| `Update` | 每帧，**但物体 inactive 时不跑** | 按键检测放这儿会失效 |
-| `OnDisable` | 每次 `SetActive(false)` | 取消订阅放这儿 |
+| `Awake` | **1 次** | **第一次被激活**时（早于 Start） |
+| `OnEnable` | **每次** | 每次 inactive → active |
+| `Start` | **1 次** | 第一次 Update 之前 |
+| `Update` | 每帧 | **物体 inactive 时不跑** |
+| `OnDisable` | **每次** | 每次 active → inactive |
+
+### 7.3 为什么"订阅放 OnEnable、退订放 OnDisable"
+
+**因为面板会被反复打开关闭：**
+
+```
+打开 → OnEnable（订阅）
+关闭 → OnDisable（退订）
+再打开 → OnEnable（订阅）   ← 每次都对上，不重复、不泄漏
+```
+
+**错误示范：**
+
+| 写法 | 后果 |
+|---|---|
+| 订阅放 `Awake`，退订放 `OnDisable` | 只订阅一次，但关一次就退掉了 → **第二次打开收不到事件** |
+| 订阅放 `OnEnable`，退订放 `Awake` | 退订永远不会执行的时机 → **泄漏** |
+
+> **一句话**：**一次性初始化放 `Awake`；需要成对进退的放 `OnEnable` / `OnDisable`。**
 
 ---
 
@@ -185,6 +308,34 @@ rt.anchoredPosition = new Vector2(0f, -y);
 | 左上 | `(0, 1)` | `(0, 1)` | `(左距, -上距)` |
 
 > **不变的规则**：`anchorMin == anchorMax` → 钉在一个点，`pivot` 决定元素往哪一边长。
+
+## 什么时候用哪张牌（最实用的一张表）
+
+| 场景 | 用哪张 | 为什么 |
+|---|---|---|
+| **背景 / 遮罩 / 全屏内容区** | ① 铺满 | 要跟着屏幕伸缩 |
+| **面板标题** | ② 顶部居中 | 大小固定，贴顶中间 |
+| **列表的一行** | ③ 顶部 + 横向拉伸 | 宽度跟父级走，高度固定 |
+| **行内的名字（左）/ 价格（右）** | ④ 贴侧 | 大小固定，贴边 |
+| **HUD 左上角的文字** | ④ 贴角 `(0,1)` | 大小固定，贴左上 |
+| **跟着右下角的小按钮** | ④ 贴角 `(1,1)` | 大小固定，贴右下 |
+
+**判断流程只有三步：**
+
+```
+1. 它的大小要不要跟着父级变？
+     要   → ① 铺满 或 ③ 横向拉伸
+     不要 → 继续
+
+2. 固定大小的话，贴在父级哪个位置？
+     中间 → ② 顶部居中 / 居中
+     边上 → ④ 贴侧
+
+3. 元素往哪个方向长？
+     → 决定 pivot
+```
+
+> **别背数字，背"判断流程"。** 数字是流程的结果。
 
 ---
 
@@ -320,6 +471,34 @@ CreateRow("KEY x2",   52f);
 
 > 你的项目现在用哪种，**去场景里点开 Canvas 看一眼**。
 
+## 12.3 Canvas 三种渲染模式
+
+| 模式 | 渲染方式 | 需要相机 | 特点 |
+|---|---|---|---|
+| **Screen Space - Overlay** | 直接画到屏幕，**永远最上层** | **不需要** | 不受任何相机影响，最简单 |
+| **Screen Space - Camera** | 画到指定相机前方的一个平面 | **需要** | 会被 3D 物体遮挡；可设 `Plane Distance` |
+| **World Space** | Canvas 变成场景里的 3D 物体 | **需要** | 可被遮挡 / 缩放 / 旋转；VR、血条、名牌用 |
+
+> **Overlay 为什么不需要相机**：它由 UI 系统**直接画到屏幕缓冲**，不经过任何相机的视锥和投影。
+> 换句话说，它不是"被相机看见"，是"直接贴到屏幕上"。
+
+## 12.4 渲染顺序（谁盖谁）
+
+**从粗到细，三层决定：**
+
+| 层级 | 排序依据 | 说明 |
+|---|---|---|
+| ① **不同 Canvas 之间** | Canvas 的 `Sorting Layer` → `Order in Layer` | `Order` 数字大的在上 |
+| ② **同一个 Canvas 内** | **Hierarchy 顺序** | **越靠下 → 越后画 → 越在上层** |
+| ③ 特殊需求 | Canvas 勾 `Override Sorting` | 单独指定排序 |
+
+**记住这条就够了**：**同一个 Canvas 里，Hierarchy 越靠下越在上面。**
+
+> **实践含义**：
+> 想让某个元素盖住别人 → 把它在 Hierarchy 里**往下拖**（或者用 `transform.SetAsLastSibling()`）。
+>
+> **反直觉点**：这里的"下"是**层级列表的下面**，不是"屏幕下方"。
+
 ---
 
 # 十三、RectTransform 完整解剖
@@ -356,7 +535,17 @@ CreateRow("KEY x2",   52f);
 
 **这一条搞懂，UGUI 就通了一半。**
 
-### 情况 A：`anchorMin == anchorMax`（锚点重合 = 钉在一个点）
+### ★ 先用两个比喻建立直觉
+
+| 锚点状态 | 形象理解 |
+|---|---|
+| **重合** | 元素是**一张便签**，用**一颗图钉**钉在墙上某一点 |
+| **分开** | 元素是**一块橡皮布**，**四个角**被钉在墙上四个位置 |
+
+- **父级变大** → 便签**大小不变**（位置参照点换了）；橡皮布被**拉大**
+- **尺寸谁说了算** → 便签看 `sizeDelta`；橡皮布看"两颗钉子之间的距离"
+
+### 情况 A：`anchorMin == anchorMax`（锚点重合 = 便签）
 
 ```
 锚点 (0.5, 1) = 父级顶部中间那个点
@@ -375,19 +564,44 @@ anchoredPosition = (0, -20);
 ```
 → 200×40 的框，**顶边**在父级顶边下方 20 像素，水平居中。
 
-### 情况 B：`anchorMin ≠ anchorMax`（锚点分开 = 拉伸）
+### 情况 B：`anchorMin ≠ anchorMax`（锚点分开 = 橡皮布）
 
 ```
-anchorMin (0,0) ──┐
-                  ├── 元素跟着父级一起拉伸
-anchorMax (1,1) ──┘
+   父级左上角                         父级右上角
+      anchorMin ●─────────────────● anchorMax
+                │    橡皮布       │
+                │  （四角被钉住）  │
+      offsetMin ●                 ● offsetMax
+       (左下角)   └─────────────────┘   (右上角)
+   父级左下角                         父级右下角
 ```
 
-- **元素大小跟着父级变**
+- **元素大小跟着父级变**（四个角固定在父级的四个位置）
 - `sizeDelta` 的含义变成 **"和父级的差值"**
   - `sizeDelta.x = 0` → **宽度 = 父级宽度**
   - `sizeDelta.x = -40` → 宽度比父级小 40
-- `anchoredPosition` 一般不用（用 `offsetMin/offsetMax` 更直观）
+- 调四边间距用 **`offsetMin` / `offsetMax`**，比 `anchoredPosition` 直观
+
+| 属性 | 对应哪个角 |
+|---|---|
+| `offsetMin` | 元素的**左下角**相对 `anchorMin` 的偏移 |
+| `offsetMax` | 元素的**右上角**相对 `anchorMax` 的偏移 |
+
+> **一句话**：**锚点分开时，你调的不是"元素多大"，而是"四个角各离父级的角多远"。**
+
+## 13.2.5 什么时候用哪个（这张表最实用）
+
+| 需求 | 用哪种 | 典型例子 |
+|---|---|---|
+| 跟着父级一起伸缩，铺满整块 | **分开**：`(0,0)`→`(1,1)` + offset 0 | 背景、遮罩、滚动内容区 |
+| 固定大小，贴父级某个位置 | **重合**：`min = max` + `pivot` | 标题、按钮、行内文字 |
+| 宽度跟着父级、高度固定 | **横向分开、纵向重合** | 列表的一行 |
+| 跟着父级右下角、大小不变 | **重合在 `(1,1)`** | 右下角按钮 |
+
+> **判断顺序**：
+> 1. **它的大小要不要跟着父级变？** 要 → 分开；不要 → 重合
+> 2. **如果要固定大小，贴哪？** 决定 `anchorMin = anchorMax` 填多少
+> 3. **元素往哪个方向长？** 决定 `pivot`
 
 ## 13.3 完整算例（拿纸跟着算一遍）
 
